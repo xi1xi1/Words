@@ -1,4 +1,3 @@
-# backend.md   
 # 背了么 - 后端架构说明文档
 
 ---
@@ -220,13 +219,13 @@ LIMIT 100;
 ```
 com.beileme
 │
-├── controller
-├── service
-├── mapper
-├── entity
-├── dto
-├── config
-└── common
+├── controller        // 接口层
+├── service           // 业务逻辑层
+├── mapper            // 数据访问层
+├── entity            // 实体类
+├── dto               // 数据传输对象
+├── config            // 配置类
+└── common            // 公共工具类
 ```
 
 ---
@@ -319,4 +318,3 @@ http://localhost:8080/api/auth/login
 - 引入智能推荐学习路径  
 
 ---
-
