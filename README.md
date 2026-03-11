@@ -35,5 +35,13 @@
 - **在校大学生**（四六级、考研备考）
 - **背单词总放弃的“反复开始者”**
 
+---
+
+## Figma 链接
+https://www.figma.com/make/tgyOxxZ9QKeIiUhGVRX2GV/%E8%83%8C%E5%8D%95%E8%AF%8Dapp?t=a35DJGc2SghKkhS6-1
+
+## v0 链接
+https://v0.app/chat/app-vnAAuRusc91?ref=B6YOZS
+
 
 
