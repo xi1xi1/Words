@@ -1,5 +1,4 @@
 
-````markdown
 # 项目规则（CLAUDE.md）
 
 ## 一、项目技术栈
