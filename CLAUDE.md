@@ -1,5 +1,5 @@
 
-````markdown
+
 # 项目规则（CLAUDE.md）
 
 ## 一、项目技术栈
@@ -12,7 +12,7 @@
 ---
 
 ## 二、目录结构
-
+````
 beileme/
 ├── frontend/ # Flutter前端项目
 │ ├── lib/
@@ -49,7 +49,7 @@ beileme/
 │ └── contributions/
 │
 └── README.md
-
+````
 ---
 
 ## 三、AI开发规则（⭐核心）
@@ -219,4 +219,3 @@ beileme/
 2. docs/ 文档优先
 3. 通用最佳实践最后
 
-```
