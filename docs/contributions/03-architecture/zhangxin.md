@@ -28,8 +28,8 @@
 
 ## PR链接
 
-PR #[14]：https://github.com/xi1xi1/Words/pull/14
-PR #[15]：https://github.com/xi1xi1/Words/pull/15
+PR #[14]：https://github.com/xi1xi1/Words/pull/14  
+PR #[15]：https://github.com/xi1xi1/Words/pull/15  
 
 ## 遇到的问题和解决
 
