@@ -28,7 +28,8 @@
 
 ## PR链接
 
-PR #[号码]：https://github.com/你的仓库/beileme/pull/[号码]
+PR #[14]：https://github.com/xi1xi1/Words/pull/14
+PR #[15]：https://github.com/xi1xi1/Words/pull/15
 
 ## 遇到的问题和解决
 
