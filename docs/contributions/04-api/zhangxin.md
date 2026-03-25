@@ -77,8 +77,8 @@
 
 ## PR 链接
 
-PR #[19]：https://github.com/xi1xi1/Words/pull/19    
-PR #[20]：https://github.com/xi1xi1/Words/pull/20   
+PR #[23]：https://github.com/xi1xi1/Words/pull/23      
+PR #[24]：https://github.com/xi1xi1/Words/pull/24    
 
 ---
 
