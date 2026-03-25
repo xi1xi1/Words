@@ -3,12 +3,12 @@ import 'package:go_router/go_router.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/home/screens/home_screen.dart';
-import 'features/challenge/screens/challenge_screen.dart';
+import 'features/challenge/screens/challenge_select_screen.dart';
 import 'features/profile/screens/profile_screen.dart';
 
 class AppRouter {
   static final router = GoRouter(
-    initialLocation: '/',
+    initialLocation: '/login',
     routes: [
       ShellRoute(
         builder: (context, state, child) {
@@ -25,7 +25,7 @@ class AppRouter {
             path: '/challenge',
             name: 'challenge',
             pageBuilder: (context, state) =>
-                const NoTransitionPage(child: ChallengeScreen()),
+                const NoTransitionPage(child: ChallengeSelectScreen()),
           ),
           GoRoute(
             path: '/profile',
