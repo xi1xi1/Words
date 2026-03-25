@@ -1,6 +1,6 @@
 name: beileme
 description: 背了么 - 轻量级背单词App
-publish_to: 'none'
+publish_to: "none"
 version: 1.0.0+1
 
 environment:
@@ -16,7 +16,8 @@ dependencies:
   flutter:
     sdk: flutter
 
-  go_router: ^13.0.0  # 确认有这个
+  http: ^1.2.1
+  go_router: ^13.0.0 # 确认有这个
   provider: ^6.1.1
   shared_preferences: ^2.2.2
 
@@ -40,7 +41,6 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
