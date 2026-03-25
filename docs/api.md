@@ -1,56 +1,90 @@
-# 背了么 —— API 设计文档
+# 背了么 API 说明文档
 
-## 一、API 设计规范
-### 1.1 通用规范
-RESTful 风格：资源通过URL定位，用HTTP方法表示操作  
-请求前缀：所有接口以 /api 开头  
-认证方式：JWT Token，放在 Authorization: Bearer <token> 头中  
-请求格式：application/json  
-响应格式：统一JSON结构  
+## 一、基本信息
 
-### 1.2 统一返回格式
-```json  
-{  
-  "code": 200,  
-  "message": "success",  
-  "data": {}  
-}  
+| 项目 | 说明 |
+|------|------|
+| 项目名称 | 背了么 |
+| 版本 | v1.0.0 |
+| 基础地址 | `http://localhost:8080/api` |
+| 响应格式 | JSON |
+| 字符编码 | UTF-8 |
+
+---
+
+## 二、认证方式
+
+除登录注册外，所有接口需要在请求头中携带 Token：
+
 ```
-### 1.3 状态码说明
-状态码	说明   
-200	成功  
-400	参数错误  
-401	未认证（Token无效/过期） 
-403	无权限  
-404	资源不存在  
-500	服务器内部错误  
-### 1.4 分页请求格式
-```json
-{
-  "page": 1,
-  "size": 20,
-  "sort": "create_time desc"
-}
+Authorization: Bearer <your-jwt-token>
 ```
-### 1.5 分页响应格式
+
+**示例：**
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+---
+
+## 三、统一响应格式
+
+### 3.1 成功响应
+
 ```json
 {
   "code": 200,
   "message": "success",
-  "data": {
-    "content": [],
-    "total": 100,
-    "page": 1,
-    "size": 20
-  }
+  "data": { ... }
 }
 ```
-## 二、认证模块（Auth）
-### 2.1 用户注册
-接口：POST /api/auth/register  
-权限：公开  
-描述：新用户注册  
-### 请求参数
+
+### 3.2 错误响应
+
+```json
+{
+  "code": 400,
+  "message": "错误信息",
+  "errors": [
+    {
+      "field": "username",
+      "message": "用户名不能为空"
+    }
+  ]
+}
+```
+
+### 3.3 状态码说明
+
+| 状态码 | 说明 |
+|--------|------|
+| 200 | 成功 |
+| 201 | 创建成功 |
+| 400 | 参数错误 |
+| 401 | 未认证（Token无效/过期） |
+| 403 | 无权限 |
+| 404 | 资源不存在 |
+| 500 | 服务器内部错误 |
+
+---
+
+## 四、认证接口（Auth）
+
+### 4.1 用户注册
+
+**接口：** `POST /api/auth/register`
+
+**权限：** 公开
+
+**请求参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| username | string | 是 | 用户名，3-50位 |
+| password | string | 是 | 密码，至少6位 |
+| email | string | 是 | 邮箱 |
+
+**请求示例：**
 ```json
 {
   "username": "zhangsan",
@@ -58,43 +92,64 @@ RESTful 风格：资源通过URL定位，用HTTP方法表示操作
   "email": "zhangsan@example.com"
 }
 ```
-### 响应成功
+
+**响应示例：**
 ```json
 {
   "code": 200,
-  "message": "注册成功",
+  "message": "success",
   "data": {
-    "userId": 1001,
-    "token": "eyJhbGciOiJIUzI1NiIs..."
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "userInfo": {
+      "id": 1001,
+      "username": "zhangsan",
+      "avatar": null,
+      "totalScore": 0,
+      "level": 1
+    }
   }
 }
 ```
-### 错误示例
+
+**错误响应：**
 ```json
 {
   "code": 400,
   "message": "用户名已存在",
-  "data": null
+  "errors": null
 }
 ```
-### 2.2 用户登录
-接口：POST /api/auth/login  
-权限：公开  
-描述：用户登录，返回Token  
-### 请求参数
+
+---
+
+### 4.2 用户登录
+
+**接口：** `POST /api/auth/login`
+
+**权限：** 公开
+
+**请求参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| username | string | 是 | 用户名，3-50位 |
+| password | string | 是 | 密码，至少6位 |
+
+**请求示例：**
 ```json
 {
   "username": "zhangsan",
   "password": "123456"
 }
 ```
-### 响应成功
+
+**响应示例：**
 ```json
 {
   "code": 200,
-  "message": "登录成功",
+  "message": "success",
   "data": {
-    "token": "eyJhbGciOiJIUzI1NiIs...",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "userInfo": {
       "id": 1001,
       "username": "zhangsan",
@@ -105,38 +160,54 @@ RESTful 风格：资源通过URL定位，用HTTP方法表示操作
   }
 }
 ```
-### 2.3 退出登录
-接口：POST /api/auth/logout  
-权限：需认证  
-描述：退出登录（客户端删除Token即可，服务端可选黑名单） 
-### 响应成功
+
+**错误响应：**
+```json
+{
+  "code": 401,
+  "message": "用户名或密码错误",
+  "errors": null
+}
+```
+
+---
+
+### 4.3 退出登录
+
+**接口：** `POST /api/auth/logout`
+
+**权限：** 需认证
+
+**请求头：**
+```
+Authorization: Bearer <token>
+```
+
+**响应示例：**
 ```json
 {
   "code": 200,
-  "message": "退出成功",
+  "message": "success",
   "data": null
 }
 ```
-### 2.4 刷新Token
-接口：POST /api/auth/refresh  
-权限：需认证  
-描述：用旧Token换取新Token  
-### 响应成功
-```json
-{
-  "code": 200,
-  "message": "刷新成功",
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIs..."
-  }
-}
+
+---
+
+## 五、用户接口（User）
+
+### 5.1 获取用户信息
+
+**接口：** `GET /api/user/profile`
+
+**权限：** 需认证
+
+**请求头：**
 ```
-## 三、用户模块（User）
-### 3.1 获取用户信息
-接口：GET /api/user/profile  
-权限：需认证  
-描述：获取当前登录用户的详细信息  
-### 响应成功
+Authorization: Bearer <token>
+```
+
+**响应示例：**
 ```json
 {
   "code": 200,
@@ -144,137 +215,213 @@ RESTful 风格：资源通过URL定位，用HTTP方法表示操作
   "data": {
     "id": 1001,
     "username": "zhangsan",
-    "avatar": "https://example.com/avatar.png",
+    "avatar": "https://cdn.beileme.com/avatars/1.jpg",
     "totalScore": 1250,
-    "level": 3,
-    "createTime": "2026-01-15 10:30:00"
+    "level": 3
   }
 }
 ```
-### 3.2 更新用户信息
-接口：PUT /api/user/profile  
-权限：需认证  
-描述：更新用户头像等信息  
-### 请求参数
+
+---
+
+### 5.2 更新用户信息
+
+**接口：** `PUT /api/user/profile`
+
+**权限：** 需认证
+
+**请求参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| avatar | string | 否 | 头像URL |
+
+**请求示例：**
 ```json
 {
-  "avatar": "https://example.com/new-avatar.png"
+  "avatar": "https://cdn.beileme.com/avatars/new-avatar.png"
 }
 ```
-### 响应成功
+
+**响应示例：**
 ```json
 {
   "code": 200,
-  "message": "更新成功",
+  "message": "success",
   "data": null
 }
 ```
-### 3.3 修改密码
-接口：POST /api/user/change-password  
-权限：需认证  
-描述：修改登录密码  
-### 请求参数
 
+---
+
+### 5.3 修改密码
+
+**接口：** `PUT /api/user/password`
+
+**权限：** 需认证
+
+**请求参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| oldPassword | string | 是 | 原密码 |
+| newPassword | string | 是 | 新密码，至少6位 |
+
+**请求示例：**
 ```json
 {
   "oldPassword": "123456",
   "newPassword": "654321"
 }
 ```
-### 响应成功
 
-```json
-{
-  "code": 200,
-  "message": "密码修改成功",
-  "data": null
-}
-```
-## 四、单词模块（Word）
-### 4.1 获取今日学习单词
-接口：GET /api/words/daily  
-权限：需认证  
-描述：获取今日需要学习的单词列表（默认5个）  
-### 响应成功
+**响应示例：**
 ```json
 {
   "code": 200,
   "message": "success",
-  "data": [
-    {
-      "id": 1,
-      "word": "abandon",
-      "meaning": ["v. 放弃", "n. 放任"],
-      "phonetic": "/əˈbændən/",
-      "example": ["He abandoned his plan.", "They abandoned the city."]
-    },
-    {
-      "id": 2,
-      "word": "ability",
-      "meaning": ["n. 能力", "才能"],
-      "phonetic": "/əˈbɪləti/",
-      "example": ["She has the ability to learn fast."]
-    }
-  ]
+  "data": null
 }
 ```
-### 4.2 提交学习记录
-接口：POST /api/words/learn  
-权限：需认证  
-描述：提交单词学习结果，更新复习计划  
-### 请求参数
+
+---
+
+## 六、单词接口（Words）
+
+### 6.1 获取今日单词
+
+**接口：** `GET /api/words/daily`
+
+**权限：** 需认证
+
+**请求头：**
+```
+Authorization: Bearer <token>
+```
+
+**响应示例：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "newWords": [
+      {
+        "id": 1,
+        "word": "abandon",
+        "meaning": ["v. 放弃", "n. 放任"],
+        "phonetic": "/əˈbændən/",
+        "example": ["He abandoned his plan.", "They abandoned the city."]
+      }
+    ],
+    "reviewWords": [
+      {
+        "id": 10,
+        "word": "serendipity",
+        "meaning": ["n. 意外发现美好事物的能力"],
+        "phonetic": "/ˌserənˈdɪpəti/",
+        "example": ["Finding this job was pure serendipity."]
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 6.2 提交学习结果
+
+**接口：** `POST /api/words/learn`
+
+**权限：** 需认证
+
+**请求参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| wordId | long | 是 | 单词ID |
+| isCorrect | boolean | 是 | 是否正确 |
+
+**请求示例：**
 ```json
 {
   "wordId": 1,
   "isCorrect": true
 }
 ```
-### 响应成功
+
+**响应示例：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": null
+}
+```
+
+---
+
+### 6.3 搜索单词
+
+**接口：** `GET /api/words/search`
+
+**权限：** 需认证
+
+**请求参数（Query）：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| keyword | string | 是 | 搜索关键词 |
+| page | int | 否 | 页码，默认1 |
+| size | int | 否 | 每页数量，默认20 |
+
+**请求示例：**
+```
+GET /api/words/search?keyword=abandon&page=1&size=10
+```
+
+**响应示例：**
 ```json
 {
   "code": 200,
   "message": "success",
   "data": {
-    "nextWord": {
-      "id": 2,
-      "word": "ability",
-      "meaning": ["n. 能力", "才能"],
-      "phonetic": "/əˈbɪləti/"
-    },
-    "progress": {
-      "learned": 1,
-      "total": 5,
-      "percentage": 20
-    }
+    "content": [
+      {
+        "id": 1,
+        "word": "abandon",
+        "meaning": ["v. 放弃", "n. 放任"],
+        "phonetic": "/əˈbændən/",
+        "example": ["He abandoned his plan."]
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "size": 10
   }
 }
 ```
-### 4.3 获取复习单词列表
-接口：GET /api/words/review  
-权限：需认证  
-描述：获取今日需要复习的单词列表（按复习时间排序） 
-### 响应成功
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": [
-    {
-      "id": 10,
-      "word": "serendipity",
-      "meaning": ["n. 意外发现美好事物的能力"],
-      "phonetic": "/ˌserənˈdɪpəti/",
-      "reviewCount": 2,
-      "memoryScore": 0.65
-    }
-  ]
-}
+
+---
+
+### 6.4 获取单词详情
+
+**接口：** `GET /api/words/{id}`
+
+**权限：** 需认证
+
+**路径参数：**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| id | long | 单词ID |
+
+**请求示例：**
 ```
-### 4.4 单词详情
-接口：GET /api/words/{wordId}  
-权限：需认证  
-描述：获取单个单词的详细信息  
-### 响应成功
+GET /api/words/1
+```
+
+**响应示例：**
 ```json
 {
   "code": 200,
@@ -284,55 +431,244 @@ RESTful 风格：资源通过URL定位，用HTTP方法表示操作
     "word": "abandon",
     "meaning": ["v. 放弃", "n. 放任"],
     "phonetic": "/əˈbændən/",
-    "example": ["He abandoned his plan.", "They abandoned the city."],
-    "partOfSpeech": ["verb", "noun"],
-    "synonyms": ["desert", "leave"],
-    "antonyms": ["keep", "maintain"]
+    "example": ["He abandoned his plan.", "They abandoned the city."]
   }
 }
 ```
-## 五、生词本模块（Wordbook）
-### 5.1 加入生词本
-接口：POST /api/wordbook/add  
-权限：需认证  
-描述：将单词加入生词本（设置status=2） 
-### 请求参数
+
+**错误响应：**
 ```json
 {
-  "wordId": 1
-}
-```
-### 响应成功
-```json
-{
-  "code": 200,
-  "message": "已加入生词本",
-  "data": {
-    "wordbookId": 10001
-  }
-}
-```
-### 5.2 从生词本移除
-接口：DELETE /api/wordbook/remove/{wordId}  
-权限：需认证  
-描述：将单词从生词本移除  
-### 响应成功
-```json
-{
-  "code": 200,
-  "message": "已移除",
+  "code": 404,
+  "message": "单词不存在",
   "data": null
 }
 ```
-### 5.3 获取生词本列表
-接口：GET /api/wordbook/list  
-权限：需认证  
-描述：分页获取生词本中的单词  
-### 请求参数（Query）
+
+---
+
+## 七、闯关接口（Challenge）
+
+### 7.1 开始闯关
+
+**接口：** `POST /api/challenge/start`
+
+**权限：** 需认证
+
+**请求参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| levelType | int | 是 | 1-初级场 2-中级场 3-高级场 |
+
+**请求示例：**
+```json
+{
+  "levelType": 1
+}
 ```
-?page=1&size=20&sort=create_time desc
+
+**响应示例：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "challengeId": "ch_1701234567890",
+    "questions": [
+      {
+        "id": 1,
+        "word": "abandon",
+        "options": ["放弃", "保留", "继续", "开始"],
+        "correctIndex": 0
+      },
+      {
+        "id": 2,
+        "word": "ability",
+        "options": ["能力", "弱点", "优势", "机会"],
+        "correctIndex": 0
+      }
+    ],
+    "timeLimit": 60
+  }
+}
 ```
-### 响应成功
+
+---
+
+### 7.2 提交闯关结果
+
+**接口：** `POST /api/challenge/submit`
+
+**权限：** 需认证
+
+**请求参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| challengeId | string | 是 | 闯关ID |
+| answers | array | 是 | 答题列表 |
+
+**answers 结构：**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| questionId | long | 题目ID |
+| selectedIndex | int | 选择的选项索引 |
+| timeSpent | int | 答题耗时（秒） |
+
+**请求示例：**
+```json
+{
+  "challengeId": "ch_1701234567890",
+  "answers": [
+    {
+      "questionId": 1,
+      "selectedIndex": 0,
+      "timeSpent": 8
+    },
+    {
+      "questionId": 2,
+      "selectedIndex": 0,
+      "timeSpent": 12
+    }
+  ]
+}
+```
+
+**响应示例：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "score": 850,
+    "correctCount": 2,
+    "totalCount": 2,
+    "accuracy": 1.0,
+    "addedScore": 85,
+    "totalScore": 1335
+  }
+}
+```
+
+---
+
+### 7.3 获取闯关记录
+
+**接口：** `GET /api/challenge/records`
+
+**权限：** 需认证
+
+**请求参数（Query）：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| levelType | int | 否 | 1-初级 2-中级 3-高级 |
+| page | int | 否 | 页码，默认1 |
+| size | int | 否 | 每页数量，默认20 |
+
+**请求示例：**
+```
+GET /api/challenge/records?levelType=1&page=1&size=10
+```
+
+**响应示例：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "content": [
+      {
+        "id": 5001,
+        "levelType": 1,
+        "score": 850,
+        "correctCount": 18,
+        "totalCount": 20,
+        "duration": 375,
+        "createTime": "2026-03-18 15:30:00"
+      }
+    ],
+    "total": 8,
+    "page": 1,
+    "size": 10
+  }
+}
+```
+
+---
+
+## 八、排行榜接口（Leaderboard）
+
+### 8.1 获取排行榜
+
+**接口：** `GET /api/leaderboard`
+
+**权限：** 需认证
+
+**请求参数（Query）：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| type | string | 否 | total-总榜 daily-今日榜 weekly-周榜，默认total |
+| limit | int | 否 | 返回数量，默认50，最大100 |
+
+**请求示例：**
+```
+GET /api/leaderboard?type=total&limit=50
+```
+
+**响应示例：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "list": [
+      {
+        "rank": 1,
+        "userId": 1001,
+        "username": "单词达人",
+        "avatar": null,
+        "totalScore": 95580
+      },
+      {
+        "rank": 2,
+        "userId": 1002,
+        "username": "学霸小王",
+        "avatar": null,
+        "totalScore": 92245
+      }
+    ],
+    "myRank": 128
+  }
+}
+```
+
+---
+
+## 九、生词本接口（Wordbook）
+
+### 9.1 获取生词本列表
+
+**接口：** `GET /api/wordbook/list`
+
+**权限：** 需认证
+
+**请求参数（Query）：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| page | int | 否 | 页码，默认1 |
+| size | int | 否 | 每页数量，默认20 |
+
+**请求示例：**
+```
+GET /api/wordbook/list?page=1&size=20
+```
+
+**响应示例：**
 ```json
 {
   "code": 200,
@@ -354,256 +690,169 @@ RESTful 风格：资源通过URL定位，用HTTP方法表示操作
   }
 }
 ```
-### 5.4 获取AI例句
-接口：GET /api/wordbook/ai/{wordId}  
-权限：需认证  
-描述：获取AI生成的单词例句和对话  
-### 响应成功
+
+---
+
+### 9.2 添加单词到生词本
+
+**接口：** `POST /api/wordbook/add`
+
+**权限：** 需认证
+
+**请求参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| wordId | long | 是 | 单词ID |
+
+**请求示例：**
+```json
+{
+  "wordId": 1
+}
+```
+
+**响应示例：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": null
+}
+```
+
+---
+
+### 9.3 从生词本移除
+
+**接口：** `DELETE /api/wordbook/remove/{wordId}`
+
+**权限：** 需认证
+
+**路径参数：**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| wordId | long | 单词ID |
+
+**请求示例：**
+```
+DELETE /api/wordbook/remove/1
+```
+
+**响应示例：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": null
+}
+```
+
+---
+
+### 9.4 获取AI生成内容
+
+**接口：** `GET /api/wordbook/ai/{wordId}`
+
+**权限：** 需认证
+
+**路径参数：**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| wordId | long | 单词ID |
+
+**请求示例：**
+```
+GET /api/wordbook/ai/1
+```
+
+**响应示例：**
 ```json
 {
   "code": 200,
   "message": "success",
   "data": {
-    "word": "serendipity",
+    "word": "abandon",
     "examples": [
-      "Finding this job was pure serendipity.",
-      "The discovery was a serendipity that changed science."
+      "He abandoned his plan.",
+      "They abandoned the city."
     ],
     "dialogues": [
       {
-        "scene": "咖啡馆相遇",
+        "scene": "告别场景",
         "conversation": [
-          "A: I can't believe we both ordered the same coffee!",
-          "B: What a serendipity! We must be soulmates."
+          "A: Why did you leave?",
+          "B: I had to abandon the project."
         ]
       }
     ]
   }
 }
 ```
-## 六、闯关模块（Challenge）
-### 6.1 开始闯关
-接口：POST /api/challenge/start  
-权限：需认证  
-描述：开始一局闯关，返回题目列表  
-### 请求参数
-```json
-{
-  "level": 1
-  // 1-初级 2-中级 3-高级
-}
-```
-### 响应成功
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "challengeId": 5001,
-    "level": 1,
-    "timeLimit": 60,
-    "questions": [
-      {
-        "id": 1,
-        "word": "abundant",
-        "options": ["丰富的", "缺乏的", "普通的", "罕见的"],
-        "correctIndex": 0
-      },
-      {
-        "id": 2,
-        "word": "ubiquitous",
-        "options": ["短暂的", "无处不在的", "雄辩的", "有弹性的"],
-        "correctIndex": 1
-      }
-    ],
-    "totalCount": 5
-  }
-}
-```
-### 6.2 提交答案（实时）
-接口：POST /api/challenge/submit-answer  
-权限：需认证  
-描述：实时提交单题答案（可选，也可最后一起提交） 
-### 请求参数
-```json
-{
-  "challengeId": 5001,
-  "questionId": 1,
-  "selectedIndex": 0,
-  "timeSpent": 8
-}
-```
-### 响应成功
+
+---
+
+## 十、学习统计接口（Study）
+
+### 10.1 获取学习统计
+
+**接口：** `GET /api/study/stats`
+
+**权限：** 需认证
+
+**响应示例：**
 ```json
 {
   "code": 200,
   "message": "success",
   "data": {
-    "isCorrect": true,
-    "currentScore": 100,
-    "nextQuestion": {
-      "id": 2,
-      "word": "ubiquitous",
-      "options": ["短暂的", "无处不在的", "雄辩的", "有弹性的"]
-    }
+    "todayStudy": 35,
+    "todayReview": 80,
+    "totalWords": 1245,
+    "masteredWords": 876,
+    "wordbookWords": 128,
+    "dueReviewCount": 45,
+    "totalScore": 1250,
+    "level": 3
   }
 }
 ```
-### 6.3 提交闯关结果
-接口：POST /api/challenge/submit  
-权限：需认证  
-描述：提交整局闯关结果  
-### 请求参数
-```json
-{
-  "challengeId": 5001,
-  "answers": [
-    {
-      "questionId": 1,
-      "selectedIndex": 0,
-      "isCorrect": true,
-      "timeSpent": 8
-    },
-    {
-      "questionId": 2,
-      "selectedIndex": 1,
-      "isCorrect": true,
-      "timeSpent": 12
-    }
-  ],
-  "totalTime": 45
-}
+
+---
+
+### 10.2 获取学习趋势
+
+**接口：** `GET /api/study/trend`
+
+**权限：** 需认证
+
+**请求参数（Query）：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| days | int | 否 | 天数，默认7 |
+
+**请求示例：**
 ```
-### 响应成功
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "score": 850,
-    "correctCount": 4,
-    "totalCount": 5,
-    "correctRate": 0.8,
-    "scoreChange": "+85",
-    "rewards": {
-      "exp": 50,
-      "coins": 100
-    }
-  }
-}
+GET /api/study/trend?days=7
 ```
-## 七、排行榜模块（Leaderboard）
-### 7.1 获取排行榜
-接口：GET /api/leaderboard  
-权限：需认证  
-描述：获取排行榜数据  
-请求参数（Query）
-```
-?type=daily  // daily-今日榜 weekly-周榜 total-总榜
-&page=1
-&size=20
-```
-### 响应成功
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "type": "total",
-    "myRank": {
-      "ranking": 128,
-      "username": "zhangsan",
-      "totalScore": 1250,
-      "avatar": null
-    },
-    "list": [
-      {
-        "ranking": 1,
-        "username": "单词达人",
-        "totalScore": 95580,
-        "avatar": null,
-        "trend": "up"  // up-上升 down-下降 new-新上榜
-      },
-      {
-        "ranking": 2,
-        "username": "学霸小王",
-        "totalScore": 92245,
-        "avatar": null,
-        "trend": "down"
-      },
-      {
-        "ranking": 3,
-        "username": "英语大神",
-        "totalScore": 89930,
-        "avatar": null,
-        "trend": "up"
-      }
-    ],
-    "total": 1000,
-    "page": 1,
-    "size": 20
-  }
-}
-```
-## 八、数据统计模块（Stats）
-### 8.1 获取用户学习统计
-接口：GET /api/stats/overview  
-权限：需认证  
-描述：获取用户学习数据概览  
-### 响应成功
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "today": {
-      "studyCount": 35,
-      "reviewCount": 80,
-      "totalTime": 42
-    },
-    "total": {
-      "studyCount": 1245,
-      "masteredCount": 876,
-      "totalTime": 5680
-    },
-    "wordbookCount": 128,
-    "battleStats": {
-      "totalGames": 8,
-      "avgScore": 72,
-      "highestScore": 90,
-      "correctRate": 0.67
-    }
-  }
-}
-```
-### 8.2 获取学习趋势
-接口：GET /api/stats/trend  
-权限：需认证  
-描述：获取近7天学习趋势  
-### 请求参数（Query）
-```
-?days=7
-```
-### 响应成功
+
+**响应示例：**
 ```json
 {
   "code": 200,
   "message": "success",
   "data": [
     {
-      "date": "2026-03-12",
+      "date": "2026-03-19",
       "studyCount": 30,
       "reviewCount": 45,
       "correctRate": 0.85
     },
     {
-      "date": "2026-03-13",
-      "studyCount": 25,
-      "reviewCount": 50,
-      "correctRate": 0.82
-    },
-    {
-      "date": "2026-03-14",
+      "date": "2026-03-20",
       "studyCount": 35,
       "reviewCount": 80,
       "correctRate": 0.78
@@ -611,15 +860,28 @@ RESTful 风格：资源通过URL定位，用HTTP方法表示操作
   ]
 }
 ```
-### 8.3 获取学习日历
-接口：GET /api/stats/calendar  
-权限：需认证  
-描述：获取指定月份的学习日历热力图数据  
-### 请求参数（Query）
+
+---
+
+### 10.3 获取学习日历
+
+**接口：** `GET /api/study/calendar`
+
+**权限：** 需认证
+
+**请求参数（Query）：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| year | int | 是 | 年份 |
+| month | int | 是 | 月份（1-12） |
+
+**请求示例：**
 ```
-?year=2026&month=3
+GET /api/study/calendar?year=2026&month=3
 ```
-### 响应成功
+
+**响应示例：**
 ```json
 {
   "code": 200,
@@ -628,7 +890,7 @@ RESTful 风格：资源通过URL定位，用HTTP方法表示操作
     {
       "date": "2026-03-01",
       "count": 45,
-      "level": 2  // 0-无 1-少 2-中 3-多
+      "level": 2
     },
     {
       "date": "2026-03-02",
@@ -638,206 +900,181 @@ RESTful 风格：资源通过URL定位，用HTTP方法表示操作
   ]
 }
 ```
-## 九、闯关记录模块（Battle History）
-### 9.1 获取闯关记录列表
-接口：GET /api/battle/history  
-权限：需认证  
-描述：分页获取用户的闯关历史记录  
-### 请求参数（Query）
-```
-?page=1&size=10
-```
-### 响应成功
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "content": [
-      {
-        "id": 5001,
-        "levelType": 2,
-        "levelName": "中级场",
-        "score": 850,
-        "correctCount": 18,
-        "totalCount": 25,
-        "correctRate": 0.72,
-        "createTime": "2026-03-18 15:30:00",
-        "duration": 510,
-        "words": ["serendipity", "ephemeral", "ubiquitous"]
-      },
-      {
-        "id": 5000,
-        "levelType": 1,
-        "levelName": "初级场",
-        "score": 720,
-        "correctCount": 17,
-        "totalCount": 20,
-        "correctRate": 0.85,
-        "createTime": "2026-03-18 10:20:00",
-        "duration": 375,
-        "words": ["abandon", "ability", "absent"]
-      }
-    ],
-    "total": 8,
-    "page": 1,
-    "size": 10,
-    "summary": {
-      "totalGames": 8,
-      "avgScore": 72,
-      "highestScore": 90,
-      "avgCorrectRate": 0.67
-    }
-  }
-}
-```
-### 9.2 获取闯关详情
-接口：GET /api/battle/detail/{recordId}  
-权限：需认证  
-描述：获取单次闯关的详细答题数据  
-### 响应成功
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "id": 5001,
-    "levelType": 2,
-    "levelName": "中级场",
-    "score": 850,
-    "correctCount": 18,
-    "totalCount": 25,
-    "createTime": "2026-03-18 15:30:00",
-    "duration": 510,
-    "details": [
-      {
-        "questionId": 1,
-        "word": "serendipity",
-        "selectedIndex": 0,
-        "isCorrect": true,
-        "timeSpent": 8
-      },
-      {
-        "questionId": 2,
-        "word": "ephemeral",
-        "selectedIndex": 1,
-        "isCorrect": true,
-        "timeSpent": 12
-      }
-    ]
-  }
-}
-```
-### 9.3 获取成就墙
-接口：GET /api/battle/achievements  
-权限：需认证  
-描述：获取用户获得的成就 
-### 响应成功
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": [
-    {
-      "id": 1,
-      "name": "初出茅庐",
-      "description": "完成第一次闯关",
-      "icon": "🏆",
-      "achievedAt": "2026-03-10",
-      "progress": 1,
-      "total": 1
-    },
-    {
-      "id": 2,
-      "name": "中级挑战者",
-      "description": "在中级场获得80%以上正确率",
-      "icon": "⭐",
-      "achievedAt": "2026-03-15",
-      "progress": 1,
-      "total": 1
-    },
-    {
-      "id": 3,
-      "name": "单词达人",
-      "description": "累计学习1000个单词",
-      "icon": "📚",
-      "progress": 876,
-      "total": 1000
-    }
-  ]
-}
-```
-## 十、错误码说明
-***1001***：Token无效 - 重新登录  
-***1002***：Token过期 - 刷新Token或重新登录  
-***1003***：账号不存在 - 检查用户名  
-***1004***：密码错误 - 重新输入  
-***1005***：用户名已存在 - 更换用户名  
-***2001***：单词不存在 - 检查wordId  
-***2002***：单词已在生词本 - 无需重复添加  
-***2003***：生词本已满 - 清理后重试  
-***3001***：闯关不存在 - 检查challengeId  
-***3002***：闯关已结束 - 开始新闯关  
-***4001***：参数校验失败 - 检查请求参数  
-***5001***：服务器繁忙 - 稍后重试  
-## 十一、API 调用示例（Flutter）
-### 11.1 封装请求客户端
+
+---
+
+## 十一、错误码说明
+
+| 错误码 | 说明 |
+|--------|------|
+| 1001 | Token无效，请重新登录 |
+| 1002 | Token过期，请刷新Token或重新登录 |
+| 1003 | 账号不存在 |
+| 1004 | 密码错误 |
+| 1005 | 用户名已存在 |
+| 2001 | 单词不存在 |
+| 2002 | 单词已在生词本 |
+| 2003 | 生词本已满 |
+| 3001 | 闯关不存在 |
+| 3002 | 闯关已结束 |
+| 4001 | 参数校验失败 |
+| 5001 | 服务器繁忙，请稍后重试 |
+
+---
+
+## 十二、Flutter 调用示例
+
+### 12.1 封装 HTTP 客户端
+
 ```dart
+// lib/services/api_client.dart
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+
 class ApiClient {
   static const String baseUrl = 'http://localhost:8080/api';
-  String? _token;
   
   Future<Map<String, String>> _getHeaders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    
     return {
       'Content-Type': 'application/json',
-      if (_token != null) 'Authorization': 'Bearer $_token',
+      if (token != null) 'Authorization': 'Bearer $token',
     };
   }
   
-  Future<T> get<T>(String path, T Function(Map<String, dynamic>) fromJson) async {
+  Future<Map<String, dynamic>> get(String path) async {
     final url = Uri.parse('$baseUrl$path');
     final response = await http.get(url, headers: await _getHeaders());
-    
-    if (response.statusCode == 200) {
-      final json = jsonDecode(response.body);
-      if (json['code'] == 200) {
-        return fromJson(json['data']);
-      } else {
-        throw Exception(json['message']);
-      }
-    }
-    throw Exception('请求失败: ${response.statusCode}');
+    return _handleResponse(response);
   }
   
-  // post, put, delete 类似...
-}
-```
-### 11.2 登录调用示例
-```dart
-Future<void> login(String username, String password) async {
-  try {
+  Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body) async {
+    final url = Uri.parse('$baseUrl$path');
     final response = await http.post(
-      Uri.parse('${ApiClient.baseUrl}/auth/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'username': username,
-        'password': password,
-      }),
+      url,
+      headers: await _getHeaders(),
+      body: jsonEncode(body),
     );
-    
-    if (response.statusCode == 200) {
-      final result = jsonDecode(response.body);
-      if (result['code'] == 200) {
-        final token = result['data']['token'];
-        // 保存token到SharedPreferences
-        await prefs.setString('token', token);
-      } else {
-        // 显示错误
-        showError(result['message']);
-      }
+    return _handleResponse(response);
+  }
+  
+  Future<Map<String, dynamic>> put(String path, Map<String, dynamic> body) async {
+    final url = Uri.parse('$baseUrl$path');
+    final response = await http.put(
+      url,
+      headers: await _getHeaders(),
+      body: jsonEncode(body),
+    );
+    return _handleResponse(response);
+  }
+  
+  Future<Map<String, dynamic>> delete(String path) async {
+    final url = Uri.parse('$baseUrl$path');
+    final response = await http.delete(url, headers: await _getHeaders());
+    return _handleResponse(response);
+  }
+  
+  Map<String, dynamic> _handleResponse(http.Response response) {
+    final data = jsonDecode(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300 && data['code'] == 200) {
+      return data;
+    } else {
+      throw Exception(data['message'] ?? '请求失败');
     }
-  } catch (e) {
-    showError('网络错误');
   }
 }
 ```
+
+### 12.2 登录调用示例
+
+```dart
+// lib/services/auth_service.dart
+import 'package:shared_preferences/shared_preferences.dart';
+import 'api_client.dart';
+
+class AuthService {
+  final ApiClient _apiClient = ApiClient();
+  
+  Future<Map<String, dynamic>> login(String username, String password) async {
+    try {
+      final response = await _apiClient.post('/auth/login', {
+        'username': username,
+        'password': password,
+      });
+      
+      final token = response['data']['token'];
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('token', token);
+      
+      return response['data'];
+    } catch (e) {
+      rethrow;
+    }
+  }
+  
+  Future<Map<String, dynamic>> register(String username, String password, String email) async {
+    try {
+      final response = await _apiClient.post('/auth/register', {
+        'username': username,
+        'password': password,
+        'email': email,
+      });
+      
+      final token = response['data']['token'];
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('token', token);
+      
+      return response['data'];
+    } catch (e) {
+      rethrow;
+    }
+  }
+  
+  Future<void> logout() async {
+    try {
+      await _apiClient.post('/auth/logout', {});
+    } finally {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('token');
+    }
+  }
+}
+```
+
+### 12.3 获取用户信息示例
+
+```dart
+// lib/services/user_service.dart
+import 'api_client.dart';
+
+class UserService {
+  final ApiClient _apiClient = ApiClient();
+  
+  Future<Map<String, dynamic>> getProfile() async {
+    final response = await _apiClient.get('/user/profile');
+    return response['data'];
+  }
+  
+  Future<void> updateAvatar(String avatarUrl) async {
+    await _apiClient.put('/user/profile', {'avatar': avatarUrl});
+  }
+  
+  Future<void> changePassword(String oldPassword, String newPassword) async {
+    await _apiClient.put('/user/password', {
+      'oldPassword': oldPassword,
+      'newPassword': newPassword,
+    });
+  }
+}
+```
+
+---
+
+**文档版本：** v1.0.0  
+**最后更新：** 2026-03-25
+```
+
+---
