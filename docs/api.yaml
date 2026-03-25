@@ -1,0 +1,909 @@
+openapi: 3.0.0
+info:
+  title: 背了么 API
+  description: |
+    “背了么”是一款面向大学生的背单词App，提供标准背词、分级闯关、排行榜、AI词本等功能。
+    
+    ## 认证方式
+    除登录注册外，所有接口需要在请求头中携带JWT Token：`Authorization: Bearer <token>`
+    
+    ## 统一响应格式
+    - 成功: `{"code": 200, "message": "success", "data": {...}}`
+    - 错误: `{"code": 400, "message": "错误信息", "errors": [...]}`
+  version: 1.0.0
+  contact:
+    name: 背了么团队
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8080/api
+    description: 开发环境
+  - url: https://api.beileme.com/api
+    description: 生产环境
+
+tags:
+  - name: Auth
+    description: 用户认证相关接口
+  - name: User
+    description: 用户信息相关接口
+  - name: Words
+    description: 单词学习相关接口
+  - name: Challenge
+    description: 闯关对战相关接口
+  - name: Leaderboard
+    description: 排行榜相关接口
+  - name: Wordbook
+    description: AI词本相关接口
+  - name: Study
+    description: 学习统计相关接口
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          type: object
+      required:
+        - code
+        - message
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          example: zhangsan
+        password:
+          type: string
+          minLength: 6
+          example: "123456"
+          writeOnly: true
+
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - password
+        - email
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          example: zhangsan
+        password:
+          type: string
+          minLength: 6
+          example: "123456"
+          writeOnly: true
+        email:
+          type: string
+          format: email
+          example: zhangsan@example.com
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        username:
+          type: string
+          example: zhangsan
+        avatar:
+          type: string
+          nullable: true
+          example: https://cdn.beileme.com/avatars/1.jpg
+        totalScore:
+          type: integer
+          example: 1250
+        level:
+          type: integer
+          example: 3
+
+    LoginResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: success
+        data:
+          type: object
+          properties:
+            token:
+              type: string
+              example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+            userInfo:
+              $ref: '#/components/schemas/UserInfo'
+
+    Word:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        word:
+          type: string
+          example: abandon
+        meaning:
+          type: array
+          items:
+            type: string
+          example: ["v. 放弃", "n. 放任"]
+        phonetic:
+          type: string
+          example: "/əˈbændən/"
+        example:
+          type: array
+          items:
+            type: string
+          example: ["He abandoned his plan."]
+
+    DailyWordsResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: success
+        data:
+          type: object
+          properties:
+            newWords:
+              type: array
+              items:
+                $ref: '#/components/schemas/Word'
+            reviewWords:
+              type: array
+              items:
+                $ref: '#/components/schemas/Word'
+
+    LearnRequest:
+      type: object
+      required:
+        - wordId
+        - isCorrect
+      properties:
+        wordId:
+          type: integer
+          format: int64
+          example: 1
+        isCorrect:
+          type: boolean
+          example: true
+
+    ChallengeStartRequest:
+      type: object
+      required:
+        - levelType
+      properties:
+        levelType:
+          type: integer
+          minimum: 1
+          maximum: 3
+          description: "1-初级场 2-中级场 3-高级场"
+          example: 1
+
+    ChallengeQuestion:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        word:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        correctIndex:
+          type: integer
+
+    ChallengeStartResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: success
+        data:
+          type: object
+          properties:
+            challengeId:
+              type: string
+            questions:
+              type: array
+              items:
+                $ref: '#/components/schemas/ChallengeQuestion'
+            timeLimit:
+              type: integer
+
+    ChallengeSubmitRequest:
+      type: object
+      required:
+        - challengeId
+        - answers
+      properties:
+        challengeId:
+          type: string
+        answers:
+          type: array
+          items:
+            type: object
+            properties:
+              questionId:
+                type: integer
+                format: int64
+              selectedIndex:
+                type: integer
+              timeSpent:
+                type: integer
+
+    ChallengeSubmitResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: success
+        data:
+          type: object
+          properties:
+            score:
+              type: integer
+            correctCount:
+              type: integer
+            totalCount:
+              type: integer
+            accuracy:
+              type: number
+            addedScore:
+              type: integer
+            totalScore:
+              type: integer
+
+    RankItem:
+      type: object
+      properties:
+        rank:
+          type: integer
+        userId:
+          type: integer
+          format: int64
+        username:
+          type: string
+        avatar:
+          type: string
+        totalScore:
+          type: integer
+
+    StudyStats:
+      type: object
+      properties:
+        todayStudy:
+          type: integer
+        todayReview:
+          type: integer
+        totalWords:
+          type: integer
+        masteredWords:
+          type: integer
+        wordbookWords:
+          type: integer
+        dueReviewCount:
+          type: integer
+        totalScore:
+          type: integer
+        level:
+          type: integer
+
+    StudyTrend:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        studyCount:
+          type: integer
+        reviewCount:
+          type: integer
+        correctRate:
+          type: number
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: 用户注册
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: 注册成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: 参数错误或用户名已存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: 用户登录
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: 用户名或密码错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: 用户登出
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 登出成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /user/profile:
+    get:
+      tags:
+        - User
+      summary: 获取用户信息
+      operationId: getUserProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/UserInfo'
+    put:
+      tags:
+        - User
+      summary: 更新用户信息
+      operationId: updateUserProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                avatar:
+                  type: string
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /user/password:
+    put:
+      tags:
+        - User
+      summary: 修改密码
+      operationId: changePassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - oldPassword
+                - newPassword
+              properties:
+                oldPassword:
+                  type: string
+                newPassword:
+                  type: string
+                  minLength: 6
+      responses:
+        '200':
+          description: 修改成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /words/daily:
+    get:
+      tags:
+        - Words
+      summary: 获取今日单词
+      operationId: getDailyWords
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyWordsResponse'
+
+  /words/learn:
+    post:
+      tags:
+        - Words
+      summary: 提交学习结果
+      operationId: submitLearnResult
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LearnRequest'
+      responses:
+        '200':
+          description: 提交成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /words/search:
+    get:
+      tags:
+        - Words
+      summary: 搜索单词
+      operationId: searchWords
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: keyword
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 搜索成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /words/{id}:
+    get:
+      tags:
+        - Words
+      summary: 获取单词详情
+      operationId: getWordDetail
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Word'
+        '404':
+          description: 单词不存在
+
+  /challenge/start:
+    post:
+      tags:
+        - Challenge
+      summary: 开始闯关
+      operationId: startChallenge
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChallengeStartRequest'
+      responses:
+        '200':
+          description: 开始成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChallengeStartResponse'
+
+  /challenge/submit:
+    post:
+      tags:
+        - Challenge
+      summary: 提交闯关结果
+      operationId: submitChallenge
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChallengeSubmitRequest'
+      responses:
+        '200':
+          description: 提交成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChallengeSubmitResponse'
+
+  /challenge/records:
+    get:
+      tags:
+        - Challenge
+      summary: 获取闯关记录
+      operationId: getChallengeRecords
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: levelType
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 3
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /leaderboard:
+    get:
+      tags:
+        - Leaderboard
+      summary: 获取排行榜
+      operationId: getLeaderboard
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [total, daily, weekly]
+            default: total
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      list:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/RankItem'
+                      myRank:
+                        type: integer
+
+  /wordbook/list:
+    get:
+      tags:
+        - Wordbook
+      summary: 获取生词本列表
+      operationId: getWordbookList
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /wordbook/add:
+    post:
+      tags:
+        - Wordbook
+      summary: 添加单词到生词本
+      operationId: addToWordbook
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - wordId
+              properties:
+                wordId:
+                  type: integer
+                  format: int64
+      responses:
+        '200':
+          description: 添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /wordbook/remove/{wordId}:
+    delete:
+      tags:
+        - Wordbook
+      summary: 从生词本移除
+      operationId: removeFromWordbook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: wordId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 移除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /wordbook/ai/{wordId}:
+    get:
+      tags:
+        - Wordbook
+      summary: 获取AI生成内容
+      operationId: getAIContent
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: wordId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /study/stats:
+    get:
+      tags:
+        - Study
+      summary: 获取学习统计
+      operationId: getStudyStats
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/StudyStats'
+
+  /study/trend:
+    get:
+      tags:
+        - Study
+      summary: 获取学习趋势
+      operationId: getStudyTrend
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 7
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StudyTrend'
+
+  /study/calendar:
+    get:
+      tags:
+        - Study
+      summary: 获取学习日历
+      operationId: getStudyCalendar
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
