@@ -1,20 +1,25 @@
 // frontend/lib/features/challenge/screens/challenge_game_screen.dart
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../services/challenge_service.dart';
 import '../../../models/challenge_model.dart';
 import '../../../core/network/api_exception.dart';
-import 'challenge_result_screen.dart';
-
 class ChallengeGameScreen extends StatefulWidget {
   final String challengeId;
   final List<ChallengeQuestion> questions;
   final int timeLimit;
+  final String levelName;
+  final Color accentColor;
 
   const ChallengeGameScreen({
     super.key,
     required this.challengeId,
     required this.questions,
     required this.timeLimit,
+    this.levelName = '闯关',
+    this.accentColor = const Color(0xFF4D7CFF),
   });
 
   @override
@@ -25,50 +30,63 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> {
   final ChallengeService _challengeService = ChallengeService();
 
   int _currentIndex = 0;
-  List<ChallengeAnswer> _answers = [];
-  int _remainingSeconds = 0;
+  final List<ChallengeAnswer> _answers = [];
+  late int _remainingSeconds;
   bool _isLoading = false;
   int? _selectedIndex;
+  Timer? _timer;
+  int _combo = 0;
+  int _score = 0;
+  bool _submitted = false;
+
+  static const _headerBlue = Color(0xFF5B86F8);
+  static const _bg = Color(0xFFF7F8FA);
 
   @override
   void initState() {
     super.initState();
     _remainingSeconds = widget.timeLimit;
-    _startTimer();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || _isLoading) return;
+      if (_remainingSeconds <= 1) {
+        _timer?.cancel();
+        if (mounted) setState(() => _remainingSeconds = 0);
+        _submitAnswers();
+        return;
+      }
+      setState(() => _remainingSeconds--);
+    });
   }
 
-  void _startTimer() {
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(seconds: 1));
-      if (mounted && _remainingSeconds > 0 && !_isLoading) {
-        setState(() {
-          _remainingSeconds--;
-        });
-        return true;
-      }
-      if (_remainingSeconds == 0 && mounted) {
-        _submitAnswers();
-        return false;
-      }
-      return false;
-    });
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String _formatTime(int sec) {
+    final m = sec ~/ 60;
+    final s = sec % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
   }
 
   void _selectAnswer(int selectedIndex) {
-    setState(() {
-      _selectedIndex = selectedIndex;
-    });
+    setState(() => _selectedIndex = selectedIndex);
 
-    // 自动进入下一题
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        _nextQuestion(selectedIndex);
-      }
+    Future.delayed(const Duration(milliseconds: 420), () {
+      if (mounted) _nextQuestion(selectedIndex);
     });
   }
 
   void _nextQuestion(int selectedIndex) {
     final currentQuestion = widget.questions[_currentIndex];
+    final correct = selectedIndex == currentQuestion.correctIndex;
+    if (correct) {
+      _combo += 1;
+      _score += 10 + _combo * 2;
+    } else {
+      _combo = 0;
+    }
 
     _answers.add(
       ChallengeAnswer(
@@ -89,7 +107,10 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> {
   }
 
   Future<void> _submitAnswers() async {
-    setState(() => _isLoading = true);
+    if (_submitted) return;
+    _submitted = true;
+    _timer?.cancel();
+    if (mounted) setState(() => _isLoading = true);
 
     try {
       final result = await _challengeService.submitChallenge(
@@ -97,20 +118,13 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> {
         answers: _answers,
       );
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ChallengeResultScreen(result: result),
-          ),
-        );
-      }
+      if (mounted) context.go('/challenge-result', extra: result);
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message), backgroundColor: Colors.red),
         );
-        Navigator.pop(context);
+        context.pop();
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -119,169 +133,242 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.questions.isEmpty) {
+      return const Scaffold(body: Center(child: Text('暂无题目')));
+    }
+
     final currentQuestion = widget.questions[_currentIndex];
     final progress = (_currentIndex + 1) / widget.questions.length;
+    final qLabel = _currentIndex + 1;
+    final total = widget.questions.length;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('闯关答题'),
-        centerTitle: true,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(4),
-          child: LinearProgressIndicator(
-            value: progress,
-            backgroundColor: Colors.grey.shade200,
-            valueColor: const AlwaysStoppedAnimation(Color(0xFF4F7CFF)),
-          ),
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                children: [
-                  // 计时器
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _remainingSeconds < 10
-                          ? Colors.red.shade100
-                          : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.timer,
-                          color: _remainingSeconds < 10
-                              ? Colors.red
-                              : Colors.grey,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '剩余时间: $_remainingSeconds秒',
-                          style: TextStyle(
-                            color: _remainingSeconds < 10
-                                ? Colors.red
-                                : Colors.grey,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 40),
-
-                  // 题目
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(32),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.2),
-                          blurRadius: 20,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
+      backgroundColor: _bg,
+      body: Column(
+        children: [
+          _topHeader(progress),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
                     child: Column(
                       children: [
-                        const Text(
-                          '以下哪个是正确的中文释义？',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                        const SizedBox(height: 32),
+                        _questionCard(currentQuestion, qLabel),
+                        const SizedBox(height: 20),
                         Text(
-                          currentQuestion.word,
-                          style: const TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          '$qLabel / $total 题',
+                          style: const TextStyle(color: Color(0xFF636E72), fontSize: 14),
                         ),
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: 32),
-
-                  // 选项
-                  ...List.generate(
-                    currentQuestion.options.length,
-                    (index) => _buildOption(
-                      index,
-                      currentQuestion.options[index],
-                      _selectedIndex,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildOption(int index, String text, int? selectedIndex) {
-    bool isSelected = selectedIndex == index;
-
-    return GestureDetector(
-      onTap: selectedIndex == null && !_isLoading
-          ? () => _selectAnswer(index)
-          : null,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFF4F7CFF).withOpacity(0.1)
-              : Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? const Color(0xFF4F7CFF) : Colors.grey.shade200,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected
-                    ? const Color(0xFF4F7CFF)
-                    : Colors.grey.shade200,
+  Widget _topHeader(double progress) {
+    final top = MediaQuery.paddingOf(context).top;
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(8, top + 8, 16, 16),
+      decoration: const BoxDecoration(
+        color: _headerBlue,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              IconButton(
+                onPressed: () {
+                  _timer?.cancel();
+                  context.pop();
+                },
+                icon: const Icon(Icons.close, color: Colors.white),
               ),
-              child: Center(
+              Expanded(
                 child: Text(
-                  String.fromCharCode(65 + index),
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.grey.shade600,
-                    fontWeight: FontWeight.bold,
+                  widget.levelName,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                text,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: isSelected ? const Color(0xFF4F7CFF) : Colors.black87,
-                  fontWeight: isSelected ? FontWeight.w500 : null,
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Text(
+                  _formatTime(_remainingSeconds),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor: Colors.white.withValues(alpha: 0.35),
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2E5BFF)),
             ),
-          ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.bolt_rounded, color: Colors.orange.shade300, size: 20),
+                  const SizedBox(width: 4),
+                  Text(
+                    '连击 $_combo',
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Text(
+                '得分: $_score',
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _questionCard(ChallengeQuestion q, int qLabel) {
+    final hint = q.question.isNotEmpty ? q.question : '选择正确的中文释义';
+    final useGrid = q.options.length == 4;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE0E0E0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            '第 $qLabel 题',
+            style: const TextStyle(color: Color(0xFF636E72), fontSize: 13),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            q.word,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A2B48),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            hint,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFF636E72), fontSize: 14),
+          ),
+          const SizedBox(height: 24),
+          if (useGrid)
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.65,
+              children: List.generate(
+                q.options.length,
+                (i) => _optionTile(q.options[i], i),
+              ),
+            )
+          else
+            ...List.generate(
+              q.options.length,
+              (i) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _optionTileFullWidth(q.options[i], i),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _optionTile(String text, int index) {
+    final sel = _selectedIndex == index;
+    return GestureDetector(
+      onTap: _selectedIndex == null && !_isLoading ? () => _selectAnswer(index) : null,
+      child: Container(
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: sel ? widget.accentColor : const Color(0xFFE0E0E0),
+            width: sel ? 2 : 1,
+          ),
+        ),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 14,
+            color: sel ? widget.accentColor : const Color(0xFF636E72),
+            fontWeight: sel ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _optionTileFullWidth(String text, int index) {
+    final sel = _selectedIndex == index;
+    return GestureDetector(
+      onTap: _selectedIndex == null && !_isLoading ? () => _selectAnswer(index) : null,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: sel ? widget.accentColor : const Color(0xFFE0E0E0),
+            width: sel ? 2 : 1,
+          ),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 15,
+            color: sel ? widget.accentColor : const Color(0xFF333333),
+            fontWeight: sel ? FontWeight.w600 : FontWeight.normal,
+          ),
         ),
       ),
     );
