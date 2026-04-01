@@ -4,8 +4,6 @@ import 'app.dart';
 import 'core/providers/settings_provider.dart';
 import 'core/providers/user_provider.dart';
 import 'core/theme/app_theme.dart';
-import 'features/auth/screens/login_screen.dart'; // 导入登录页
-
 void main() {
   runApp(const MyApp());
 }
