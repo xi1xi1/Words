@@ -900,7 +900,43 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      word:
+                        type: string
+                        example: chance
+                      examples:
+                        type: array
+                        items:
+                          type: string
+                        example: ["Take a chance on it."]
+                      aiExample:
+                        type: string
+                        example: "Give yourself a chance to succeed."
+                    required:
+                      - word
+                      - examples
+                      - aiExample
+                required:
+                  - code
+                  - message
+                  - data
+               example:
+                 code: 200
+                 message: success
+                 data:
+                   word: chance
+                   examples: ["Take a chance on it."]
+                   aiExample: "Give yourself a chance to succeed."
 
   /study/stats:
     get:

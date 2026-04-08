@@ -29,4 +29,10 @@ public interface WordService {
      * 获取单词详情
      */
     Word getWordDetail(Long wordId);
+
+    /**
+     * 当今日待学队列耗尽时，自动补充一批新单词到用户的 `user_word` 中。
+     * 补充后需满足：状态=0、today_mastered=0、next_review <= NOW()，使其能进入今日学习队列。
+     */
+    void replenishDailyNewWords(Long userId);
 }

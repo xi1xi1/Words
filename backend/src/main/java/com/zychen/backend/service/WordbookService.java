@@ -2,6 +2,8 @@ package com.zychen.backend.service;
 
 import com.zychen.backend.dto.response.WordbookPage;
 
+import java.util.Map;
+
 public interface WordbookService {
 
     /**
@@ -23,4 +25,11 @@ public interface WordbookService {
      * 生词本词条总数（status=2）
      */
     int getWordbookCount(Long userId);
+
+    /**
+     * 获取 AI 生成例句（同步调用）
+     *
+     * @return data: { word, examples（原例句）, aiExample（AI例句） }
+     */
+    Map<String, Object> getAIContent(Long userId, Long wordId);
 }

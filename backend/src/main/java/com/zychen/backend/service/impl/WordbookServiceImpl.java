@@ -19,7 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Collections;
+import java.util.Map;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -98,6 +100,33 @@ public class WordbookServiceImpl implements WordbookService {
     @Override
     public int getWordbookCount(Long userId) {
         return userWordMapper.countWordbook(userId);
+    }
+
+    @Override
+    public Map<String, Object> getAIContent(Long userId, Long wordId) {
+        Word w = wordMapper.findById(wordId);
+        if (w == null) {
+            throw new BusinessException(404, "单词不存在");
+        }
+
+        // 原例句（example JSON 数组）
+        List<String> examples = parseJsonArray(w.getExample());
+
+        // AI 提示词：优先使用“第一个释义”，避免把 JSON 整段塞进 prompt
+        List<String> meanings = parseJsonArray(w.getMeaning());
+        String meaningForPrompt = meanings.isEmpty() ? "" : meanings.get(0);
+
+        // 同步调用火山方舟生成“一句英文例句”
+        String aiExample = aiService.generateExample(w.getWord(), meaningForPrompt);
+        if (aiExample == null) {
+            aiExample = "";
+        }
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("word", w.getWord());
+        data.put("examples", examples);
+        data.put("aiExample", aiExample);
+        return data;
     }
 
     private WordbookListItem toListItem(UserWord uw) {
