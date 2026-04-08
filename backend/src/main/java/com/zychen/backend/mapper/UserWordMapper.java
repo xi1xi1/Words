@@ -21,7 +21,11 @@ public interface UserWordMapper {
 
 
     /**
-     * 获取今日需要学习的单词（学习中的，今日未掌握，且到复习时间了）
+     * 获取当前学习队列（本组待学单词）：
+     * - status = 0（学习中）
+     * - today_mastered = 0（本词尚未完成三阶段）
+     *
+     * 不依赖 next_review 时间，避免因时区/时间边界导致第一阶段后“掉队列”。
      */
     @Select("SELECT id, user_id, word_id, status, study_stage, today_mastered, " +
             "review_count, next_review, memory_score, last_study_time, " +
@@ -30,9 +34,33 @@ public interface UserWordMapper {
             "WHERE user_id = #{userId} " +
             "AND status = 0 " +
             "AND today_mastered = 0 " +
-            "AND next_review <= NOW() " +
-            "ORDER BY next_review ASC")
+            "ORDER BY update_time ASC")
     List<UserWord> getTodayLearningWords(Long userId);
+
+    /**
+     * 获取“当前批次”学习队列（最多 limit 个）：
+     * - 仅包含仍在学习中的词（status=0, today_mastered=0）
+     * - 按创建顺序稳定分组，保证“这一组学完再进下一组”
+     */
+    @Select("SELECT id, user_id, word_id, status, study_stage, today_mastered, " +
+            "review_count, next_review, memory_score, last_study_time, " +
+            "create_time, update_time " +
+            "FROM user_word " +
+            "WHERE user_id = #{userId} " +
+            "AND status = 0 " +
+            "AND today_mastered = 0 " +
+            "ORDER BY create_time ASC, id ASC " +
+            "LIMIT #{limit}")
+    List<UserWord> getCurrentBatchLearningWords(@Param("userId") Long userId, @Param("limit") Integer limit);
+
+    /**
+     * 统计全部待学习队列数量（不分批）
+     */
+    @Select("SELECT COUNT(*) FROM user_word " +
+            "WHERE user_id = #{userId} " +
+            "AND status = 0 " +
+            "AND today_mastered = 0")
+    int countAllLearningWords(Long userId);
 
     /**
      * 统计今日已完成单词数
@@ -42,17 +70,17 @@ public interface UserWordMapper {
     int countTodayCompleted(Long userId);
 
     /**
-     * 统计今日需要复习的单词数
+     * 统计当前队列中“复习词”数量（review_count > 0）
      */
     @Select("SELECT COUNT(*) FROM user_word " +
             "WHERE user_id = #{userId} " +
             "AND status = 0 " +
             "AND today_mastered = 0 " +
-            "AND next_review <= NOW()")
+            "AND review_count > 0")
     int countTodayReviewWords(Long userId);
 
     /**
-     * 获取用户今日需要复习的单词（用于 getDailyWords）
+     * 获取用户复习词（保留旧接口兼容，按 review_count > 0 判定）
      */
     @Select("SELECT uw.id, uw.user_id, uw.word_id, uw.status, uw.study_stage, uw.today_mastered, " +
             "uw.review_count, uw.next_review, uw.memory_score, uw.last_study_time, " +
@@ -61,8 +89,8 @@ public interface UserWordMapper {
             "WHERE uw.user_id = #{userId} " +
             "AND uw.status = 0 " +
             "AND uw.today_mastered = 0 " +
-            "AND uw.next_review <= NOW() " +
-            "ORDER BY uw.next_review ASC " +
+            "AND uw.review_count > 0 " +
+            "ORDER BY uw.update_time ASC " +
             "LIMIT #{limit}")
     List<UserWord> getReviewWords(@Param("userId") Long userId, @Param("limit") Integer limit);
 
