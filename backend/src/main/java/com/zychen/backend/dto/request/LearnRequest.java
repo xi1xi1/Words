@@ -11,4 +11,8 @@ public class LearnRequest {
 
     @NotNull(message = "是否正确不能为空")
     private Boolean isCorrect;
+
+    @NotNull(message = "学习阶段不能为空")
+    private Integer stage;  // 1-选义 2-选例 3-认词
+
 }
