@@ -23,7 +23,7 @@ class WordbookService {
   }
 
   Future<void> addToWordbook(int wordId) async {
-    await _apiClient.post(ApiConstants.wordbookAdd, data: {'wordId': wordId});
+    await _apiClient.post('${ApiConstants.wordbookAdd}/$wordId');
   }
 
   Future<void> removeFromWordbook(int wordId) async {
