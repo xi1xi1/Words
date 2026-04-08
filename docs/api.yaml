@@ -199,11 +199,61 @@ components:
               items:
                 $ref: '#/components/schemas/Word'
 
+    LearnResponse:
+      type: object
+      properties:
+        nextWord:
+          $ref: '#/components/schemas/NextWordInfo'
+        completedCount:
+          type: integer
+          description: 今日已完成单词数
+          example: 3
+        totalCount:
+          type: integer
+          description: 今日需要学习的单词总数
+          example: 20
+
+    NextWordInfo:
+      type: object
+      properties:
+        wordId:
+          type: integer
+          format: int64
+          example: 123
+        word:
+          type: string
+          example: abandon
+        meaning:
+          type: array
+          items:
+            type: string
+          example: ["v. 放弃", "n. 放任"]
+        phonetic:
+          type: string
+          example: "/əˈbændən/"
+        stage:
+          type: integer
+          minimum: 1
+          maximum: 3
+          description: "下一阶段：1-选义 2-选例 3-认词"
+          example: 2
+        options:
+          type: array
+          items:
+            type: string
+          description: "阶段1时的4个选项（干扰项）"
+          example: ["放弃", "接受", "坚持", "离开"]
+        example:
+          type: string
+          description: "阶段2时的例句"
+          example: "He abandoned his plan." 
+
     LearnRequest:
       type: object
       required:
         - wordId
         - isCorrect
+        - stage
       properties:
         wordId:
           type: integer
@@ -212,6 +262,12 @@ components:
         isCorrect:
           type: boolean
           example: true
+        stage:
+          type: integer
+          minimum: 1
+          maximum: 3
+          description: "学习阶段：1-选义 2-选例 3-认词"
+          example: 1
 
     ChallengeStartRequest:
       type: object
@@ -265,10 +321,16 @@ components:
       type: object
       required:
         - challengeId
+        - levelType
         - answers
       properties:
         challengeId:
           type: string
+        levelType:
+          type: integer
+          minimum: 1
+          maximum: 3
+          description: "关卡等级（1初级 2中级 3高级）"
         answers:
           type: array
           items:
@@ -354,6 +416,20 @@ components:
           type: integer
         correctRate:
           type: number
+
+    StudyCalendar:
+      type: object
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+        studyDates:
+          type: array
+          description: 该月存在 study_record 的日期（yyyy-MM-dd）
+          items:
+            type: string
+            format: date
 
 paths:
   /auth/register:
@@ -522,6 +598,12 @@ paths:
       tags:
         - Words
       summary: 提交学习结果
+      description: |
+        渐进式学习流程：
+        - 阶段1（选义）：显示单词和4个中文选项，选对进入阶段2，选错回到阶段1
+        - 阶段2（选例）：显示单词+例句，选择是否认识，选认识进入阶段3，选不认识回到阶段1
+        - 阶段3（认词）：只显示单词，选择是否认识，选认识标记为今日掌握，选不认识回到阶段1
+        提交后返回下一个需要学习的单词
       operationId: submitLearnResult
       security:
         - bearerAuth: []
@@ -537,7 +619,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                $ref: '#/components/schemas/LearnResponse'
 
   /words/search:
     get:
@@ -751,7 +833,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
 
-  /wordbook/add:
+  /wordbook/add/{wordId}:
     post:
       tags:
         - Wordbook
@@ -759,18 +841,13 @@ paths:
       operationId: addToWordbook
       security:
         - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - wordId
-              properties:
-                wordId:
-                  type: integer
-                  format: int64
+      parameters:
+        - name: wordId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
       responses:
         '200':
           description: 添加成功
@@ -906,4 +983,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/StudyCalendar'
