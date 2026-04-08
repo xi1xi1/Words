@@ -1,10 +1,13 @@
 package com.zychen.backend.config;
 
+import com.zychen.backend.common.BusinessException;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.security.Key;
 import java.util.Date;
@@ -85,5 +88,26 @@ public class JwtUtil {
             log.warn("Token参数非法: {}", e.getMessage());
         }
         return false;
+    }
+
+    /**
+     * 从当前请求解析用户 ID：优先使用拦截器写入的 {@code userId} 属性，否则解析 {@code Authorization: Bearer}。
+     */
+    public Long getUserIdFromRequest(HttpServletRequest request) {
+        Object attr = request.getAttribute("userId");
+        if (attr instanceof Long) {
+            return (Long) attr;
+        }
+        if (attr instanceof Number) {
+            return ((Number) attr).longValue();
+        }
+        String auth = request.getHeader("Authorization");
+        if (StringUtils.hasText(auth) && auth.startsWith("Bearer ")) {
+            String token = auth.substring(7).trim();
+            if (!token.isEmpty() && validateToken(token)) {
+                return getUserIdFromToken(token);
+            }
+        }
+        throw new BusinessException(401, "未认证");
     }
 }
