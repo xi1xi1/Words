@@ -17,6 +17,7 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/api/words")
+@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class WordController {
 

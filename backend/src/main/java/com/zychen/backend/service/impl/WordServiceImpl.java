@@ -1,5 +1,7 @@
 package com.zychen.backend.service.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zychen.backend.common.BusinessException;
 import com.zychen.backend.dto.request.LearnRequest;
 import com.zychen.backend.dto.request.StudyRecordWriteDTO;
@@ -20,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -37,6 +40,7 @@ public class WordServiceImpl implements WordService {
     private static final int NEW_WORDS_PER_DAY = 10;
     private static final int REVIEW_WORDS_PER_DAY = 20;
     private static final int DAILY_TOTAL_LIMIT = 30;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public DailyWordsResponse getDailyWords(Long userId) {
@@ -408,21 +412,55 @@ public class WordServiceImpl implements WordService {
         if (json == null || json.isEmpty()) {
             return new ArrayList<>();
         }
-        String trimmed = json.trim();
-        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-            String content = trimmed.substring(1, trimmed.length() - 1);
-            if (content.isEmpty()) {
-                return new ArrayList<>();
+        try {
+            List<String> parsed = objectMapper.readValue(json, new TypeReference<List<String>>() {});
+            return parsed.stream()
+                    .map(this::fixCommonMojibake)
+                    .collect(Collectors.toList());
+        } catch (Exception ex) {
+            // 兼容历史非标准 JSON 文本
+            String trimmed = json.trim();
+            if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                String content = trimmed.substring(1, trimmed.length() - 1);
+                if (content.isEmpty()) {
+                    return new ArrayList<>();
+                }
+                String[] items = content.split(",");
+                List<String> result = new ArrayList<>();
+                for (String item : items) {
+                    String cleaned = item.trim().replaceAll("^\"|\"$", "");
+                    result.add(fixCommonMojibake(cleaned));
+                }
+                return result;
             }
-            String[] items = content.split(",");
-            List<String> result = new ArrayList<>();
-            for (String item : items) {
-                String cleaned = item.trim().replaceAll("^\"|\"$", "");
-                result.add(cleaned);
-            }
-            return result;
         }
         return new ArrayList<>();
+    }
+
+    /**
+     * 修正常见 UTF-8/Latin-1 错位（例如：æœºä¼š -> 机会）。
+     * 仅在原文本不含中文、且重解码后出现中文时才替换，避免误伤。
+     */
+    private String fixCommonMojibake(String text) {
+        if (text == null || text.isEmpty() || containsCjk(text)) {
+            return text;
+        }
+        String recovered = new String(text.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+        if (containsCjk(recovered)) {
+            log.warn("检测到疑似乱码并已修正: {} -> {}", text, recovered);
+            return recovered;
+        }
+        return text;
+    }
+
+    private boolean containsCjk(String text) {
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (ch >= '\u4E00' && ch <= '\u9FFF') {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
