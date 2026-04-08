@@ -16,12 +16,14 @@ class ChallengeService {
 
   Future<ChallengeSubmitResponse> submitChallenge({
     required String challengeId,
+    required int levelType,
     required List<ChallengeAnswer> answers,
   }) async {
     final response = await _apiClient.post(
       ApiConstants.challengeSubmit,
       data: {
         'challengeId': challengeId,
+        'levelType': levelType,
         'answers': answers.map((a) => a.toJson()).toList(),
       },
     );
@@ -43,8 +45,8 @@ class ChallengeService {
       queryParams: queryParams,
     );
 
-    final data = response['data'] as Map<String, dynamic>;
-    final list = data['list'] as List<dynamic>;
+    final data = response['data'] as Map<String, dynamic>? ?? {};
+    final list = data['list'] as List<dynamic>? ?? [];
     return list
         .map((e) => BattleRecord.fromJson(e as Map<String, dynamic>))
         .toList();

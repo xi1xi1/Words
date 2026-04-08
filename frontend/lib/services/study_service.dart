@@ -17,7 +17,7 @@ class StudyService {
       queryParams: {'days': days},
     );
 
-    final data = response['data'] as List<dynamic>;
+    final data = response['data'] as List<dynamic>? ?? [];
     return data
         .map((e) => StudyTrend.fromJson(e as Map<String, dynamic>))
         .toList();

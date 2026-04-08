@@ -15,8 +15,8 @@ class WordbookService {
       queryParams: {'page': page, 'size': size},
     );
 
-    final data = response['data'] as Map<String, dynamic>;
-    final list = data['list'] as List<dynamic>;
+    final data = response['data'] as Map<String, dynamic>? ?? {};
+    final list = (data['content'] ?? data['list'] ?? <dynamic>[]) as List<dynamic>;
     return list
         .map((e) => WordbookWord.fromJson(e as Map<String, dynamic>))
         .toList();

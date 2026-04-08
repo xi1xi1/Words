@@ -2,8 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../services/challenge_service.dart';
+import '../../../services/leaderboard_service.dart';
+import '../../../models/leaderboard_model.dart';
 import '../../../core/network/api_exception.dart';
-import 'challenge_game_screen.dart';
 
 class ChallengeSelectScreen extends StatefulWidget {
   const ChallengeSelectScreen({super.key});
@@ -14,8 +15,11 @@ class ChallengeSelectScreen extends StatefulWidget {
 
 class _ChallengeSelectScreenState extends State<ChallengeSelectScreen> {
   final ChallengeService _challengeService = ChallengeService();
+  final LeaderboardService _leaderboardService = LeaderboardService();
   bool _isLoading = false;
+  bool _leaderboardLoading = true;
   int? _selectedLevel;
+  List<LeaderboardEntry> _topEntries = [];
 
   static const _bg = Color(0xFFF7F8FA);
   static const _blue = Color(0xFF4D7CFF);
@@ -58,6 +62,33 @@ class _ChallengeSelectScreenState extends State<ChallengeSelectScreen> {
     },
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _loadLeaderboardPreview();
+  }
+
+  Future<void> _loadLeaderboardPreview() async {
+    setState(() => _leaderboardLoading = true);
+    try {
+      final result = await _leaderboardService.getLeaderboard(
+        type: 'total',
+        limit: 2,
+      );
+      if (!mounted) return;
+      setState(() {
+        _topEntries = result.entries.take(2).toList();
+        _leaderboardLoading = false;
+      });
+    } on ApiException {
+      if (!mounted) return;
+      setState(() {
+        _topEntries = [];
+        _leaderboardLoading = false;
+      });
+    }
+  }
+
   Future<void> _startChallenge(int levelType) async {
     setState(() {
       _isLoading = true;
@@ -69,17 +100,16 @@ class _ChallengeSelectScreenState extends State<ChallengeSelectScreen> {
       final level = _levels.firstWhere((e) => e['level'] == levelType);
 
       if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ChallengeGameScreen(
-              challengeId: response.challengeId,
-              questions: response.questions,
-              timeLimit: response.timeLimit,
-              levelName: level['name'] as String,
-              accentColor: level['btnColor'] as Color,
-            ),
-          ),
+        context.push(
+          '/challenge-game',
+          extra: {
+            'challengeId': response.challengeId,
+            'questions': response.questions,
+            'timeLimit': response.timeLimit,
+            'levelType': levelType,
+            'levelName': level['name'] as String,
+            'accentColor': level['btnColor'] as Color,
+          },
         );
       }
     } on ApiException catch (e) {
@@ -292,17 +322,57 @@ class _ChallengeSelectScreenState extends State<ChallengeSelectScreen> {
                     '全服排行榜',
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF2D3436)),
                   ),
+                  const Spacer(),
+                  const Text(
+                    '查看详情',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF8A94A6)),
+                  ),
                 ],
               ),
               const SizedBox(height: 14),
-              _miniRank(Icons.emoji_events, Colors.amber, '单词达人', '9580 积分'),
-              const SizedBox(height: 10),
-              _miniRank(Icons.person_outline, Color(0xFFCCCCCC), '学霸小王', '9220 积分'),
+              if (_leaderboardLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (_topEntries.isEmpty) ...[
+                const Text(
+                  '暂无排行榜数据',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF888888)),
+                ),
+                const SizedBox(height: 6),
+                TextButton(
+                  onPressed: _loadLeaderboardPreview,
+                  child: const Text('重新加载'),
+                ),
+              ] else ...[
+                for (var i = 0; i < _topEntries.length; i++) ...[
+                  _miniRank(
+                    _iconForRank(_topEntries[i].rank),
+                    _colorForRank(_topEntries[i].rank),
+                    _topEntries[i].username,
+                    '${_topEntries[i].score} 积分',
+                  ),
+                  if (i != _topEntries.length - 1) const SizedBox(height: 10),
+                ],
+              ],
             ],
           ),
         ),
       ),
     );
+  }
+
+  IconData _iconForRank(int rank) {
+    if (rank == 1) return Icons.emoji_events;
+    if (rank == 2) return Icons.workspace_premium;
+    return Icons.person_outline;
+  }
+
+  Color _colorForRank(int rank) {
+    if (rank == 1) return Colors.amber;
+    if (rank == 2) return const Color(0xFFB0BEC5);
+    return const Color(0xFFCCCCCC);
   }
 
   Widget _miniRank(IconData icon, Color iconColor, String name, subtitle) {

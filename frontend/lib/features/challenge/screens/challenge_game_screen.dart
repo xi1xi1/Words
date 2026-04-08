@@ -6,10 +6,12 @@ import 'package:go_router/go_router.dart';
 import '../../../services/challenge_service.dart';
 import '../../../models/challenge_model.dart';
 import '../../../core/network/api_exception.dart';
+
 class ChallengeGameScreen extends StatefulWidget {
   final String challengeId;
   final List<ChallengeQuestion> questions;
   final int timeLimit;
+  final int levelType;
   final String levelName;
   final Color accentColor;
 
@@ -18,6 +20,7 @@ class ChallengeGameScreen extends StatefulWidget {
     required this.challengeId,
     required this.questions,
     required this.timeLimit,
+    required this.levelType,
     this.levelName = '闯关',
     this.accentColor = const Color(0xFF4D7CFF),
   });
@@ -115,10 +118,21 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> {
     try {
       final result = await _challengeService.submitChallenge(
         challengeId: widget.challengeId,
+        levelType: widget.levelType,
         answers: _answers,
       );
 
-      if (mounted) context.go('/challenge-result', extra: result);
+      if (mounted) {
+        context.go(
+          '/challenge-result',
+          extra: {
+            'result': result,
+            'levelType': widget.levelType,
+            'levelName': widget.levelName,
+            'accentColor': widget.accentColor,
+          },
+        );
+      }
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -158,7 +172,10 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> {
                         const SizedBox(height: 20),
                         Text(
                           '$qLabel / $total 题',
-                          style: const TextStyle(color: Color(0xFF636E72), fontSize: 14),
+                          style: const TextStyle(
+                            color: Color(0xFF636E72),
+                            fontSize: 14,
+                          ),
                         ),
                       ],
                     ),

@@ -1,65 +1,74 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../services/challenge_service.dart';
+import '../../../models/challenge_model.dart';
+import '../../../core/network/api_exception.dart';
 
-class _Battle {
-  final String levelLabel;
-  final Color badgeColor;
-  final String time;
-  final String score;
-  final bool up;
-  final String detail;
-  final List<String> words;
+class RecentBattlesScreen extends StatefulWidget {
+  const RecentBattlesScreen({super.key});
 
-  const _Battle({
-    required this.levelLabel,
-    required this.badgeColor,
-    required this.time,
-    required this.score,
-    required this.up,
-    required this.detail,
-    required this.words,
-  });
+  @override
+  State<RecentBattlesScreen> createState() => _RecentBattlesScreenState();
 }
 
-/// 最近战绩
-class RecentBattlesScreen extends StatelessWidget {
-  const RecentBattlesScreen({super.key});
+class _RecentBattlesScreenState extends State<RecentBattlesScreen> {
+  final ChallengeService _service = ChallengeService();
+
+  bool _loading = true;
+  List<BattleRecord> _records = [];
+  int _totalBattles = 0;
+  double _avgAccuracy = 0;
+  int _maxScore = 0;
 
   static const _primary = Color(0xFF4A7DFF);
   static const _bg = Color(0xFFF7F8FA);
 
   @override
-  Widget build(BuildContext context) {
-    const battles = [
-      _Battle(
-        levelLabel: '中级场',
-        badgeColor: Color(0xFF4A7DFF),
-        time: '今天 15:30',
-        score: '72%',
-        up: true,
-        detail: '用时 8分30秒   18/25 题',
-        words: ['serendipity', 'ephemeral'],
-      ),
-      _Battle(
-        levelLabel: '初级场',
-        badgeColor: Color(0xFF66CC77),
-        time: '昨天 18:12',
-        score: '85%',
-        up: false,
-        detail: '用时 5分10秒   20/25 题',
-        words: ['resilience', 'eloquent'],
-      ),
-      _Battle(
-        levelLabel: '高级场',
-        badgeColor: Color(0xFFFFA04D),
-        time: '3月28日',
-        score: '61%',
-        up: true,
-        detail: '用时 12分20秒   15/25 题',
-        words: ['ubiquitous'],
-      ),
-    ];
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+    try {
+      final records = await _service.getChallengeRecords(size: 50);
+      if (mounted) {
+        _records = records;
+        _calculateStats();
+        setState(() => _loading = false);
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+        );
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  void _calculateStats() {
+    _totalBattles = _records.length;
+    if (_records.isEmpty) {
+      _avgAccuracy = 0;
+      _maxScore = 0;
+      return;
+    }
+
+    double totalAcc = 0;
+    int maxScore = 0;
+    for (final r in _records) {
+      final acc = r.totalCount > 0 ? r.correctCount / r.totalCount : 0.0;
+      totalAcc += acc;
+      if (r.score > maxScore) maxScore = r.score;
+    }
+    _avgAccuracy = totalAcc / _records.length;
+    _maxScore = maxScore;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
       body: Column(
@@ -67,19 +76,39 @@ class RecentBattlesScreen extends StatelessWidget {
         children: [
           _header(context),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              children: [
-                _statsGrid(),
-                const SizedBox(height: 20),
-                const Text(
-                  '历史记录',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
-                ),
-                const SizedBox(height: 12),
-                ...battles.map(_battleCard),
-              ],
-            ),
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : RefreshIndicator(
+                    onRefresh: _loadData,
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                      children: [
+                        _statsGrid(),
+                        const SizedBox(height: 20),
+                        const Text(
+                          '历史记录',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF333333),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        if (_records.isEmpty)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(32),
+                              child: Text(
+                                '暂无闯关记录',
+                                style: TextStyle(color: Color(0xFF888888)),
+                              ),
+                            ),
+                          )
+                        else
+                          ..._records.map(_battleCard),
+                      ],
+                    ),
+                  ),
           ),
         ],
       ),
@@ -89,7 +118,12 @@ class RecentBattlesScreen extends StatelessWidget {
   Widget _header(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(8, MediaQuery.paddingOf(context).top + 8, 16, 24),
+      padding: EdgeInsets.fromLTRB(
+        8,
+        MediaQuery.paddingOf(context).top + 8,
+        16,
+        24,
+      ),
       decoration: const BoxDecoration(
         color: _primary,
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
@@ -99,19 +133,30 @@ class RecentBattlesScreen extends StatelessWidget {
         children: [
           IconButton(
             onPressed: () => context.pop(),
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+            icon: const Icon(
+              Icons.arrow_back_ios_new,
+              color: Colors.white,
+              size: 20,
+            ),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
           ),
           const SizedBox(height: 4),
           const Text(
             '最近战绩',
-            style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             '查看你的闯关历史记录',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 13,
+            ),
           ),
         ],
       ),
@@ -136,39 +181,59 @@ class RecentBattlesScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF888888))),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF888888)),
+            ),
             const SizedBox(height: 8),
             Text(
               value,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: valueColor),
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: valueColor,
+              ),
             ),
           ],
         ),
       );
     }
 
+    final avgPct = (_avgAccuracy * 100).round();
+    final totalScore = _records.fold<int>(0, (sum, r) => sum + r.score);
+
     return Column(
       children: [
         Row(
           children: [
-            Expanded(child: cell('总场次', '8', const Color(0xFF1A1A1B))),
+            Expanded(
+              child: cell('总场次', '$_totalBattles', const Color(0xFF1A1A1B)),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: cell('平均分', '72%', _primary)),
+            Expanded(child: cell('平均分', '$avgPct%', _primary)),
           ],
         ),
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: cell('最高分', '90%', const Color(0xFF66CC77))),
+            Expanded(child: cell('最高分', '$_maxScore', const Color(0xFF66CC77))),
             const SizedBox(width: 12),
-            Expanded(child: cell('正确率', '67%', const Color(0xFF1A1A1B))),
+            Expanded(
+              child: cell('累计积分', '$totalScore', const Color(0xFF1A1A1B)),
+            ),
           ],
         ),
       ],
     );
   }
 
-  Widget _battleCard(_Battle b) {
+  Widget _battleCard(BattleRecord record) {
+    final accuracy = record.totalCount > 0
+        ? (record.correctCount / record.totalCount * 100).round()
+        : 0;
+    final levelColor = _getLevelColor(record.levelType);
+    final timeStr = _formatTime(record.createTime);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -189,22 +254,35 @@ class RecentBattlesScreen extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: b.badgeColor.withValues(alpha: 0.15),
+                  color: levelColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  b.levelLabel,
-                  style: TextStyle(color: b.badgeColor, fontWeight: FontWeight.w600, fontSize: 12),
+                  record.levelTypeName,
+                  style: TextStyle(
+                    color: levelColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(b.time, style: const TextStyle(color: Color(0xFF888888), fontSize: 13)),
+                child: Text(
+                  timeStr,
+                  style: const TextStyle(
+                    color: Color(0xFF888888),
+                    fontSize: 13,
+                  ),
+                ),
               ),
               Text(
-                b.score,
+                '$accuracy%',
                 style: const TextStyle(
                   color: _primary,
                   fontWeight: FontWeight.bold,
@@ -213,42 +291,69 @@ class RecentBattlesScreen extends StatelessWidget {
               ),
               const SizedBox(width: 4),
               Icon(
-                b.up ? Icons.trending_up : Icons.trending_down,
-                color: b.up ? const Color(0xFF4CAF50) : const Color(0xFFF44336),
+                accuracy >= 60 ? Icons.trending_up : Icons.trending_down,
+                color: accuracy >= 60
+                    ? const Color(0xFF4CAF50)
+                    : const Color(0xFFF44336),
                 size: 20,
               ),
             ],
           ),
           const SizedBox(height: 10),
-          Text(b.detail, style: const TextStyle(color: Color(0xFF888888), fontSize: 13)),
-          const Divider(height: 24),
-          const Text('涉及单词', style: TextStyle(fontSize: 12, color: Color(0xFF888888))),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          Row(
             children: [
-              ...b.words.map(
-                (w) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFFE0E0E0)),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    w,
-                    style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: Color(0xFF444444)),
+              Text(
+                '得分 ${record.score}',
+                style: const TextStyle(color: Color(0xFF888888), fontSize: 13),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                '${record.correctCount}/${record.totalCount} 题',
+                style: const TextStyle(color: Color(0xFF888888), fontSize: 13),
+              ),
+              if (record.duration != null) ...[
+                const SizedBox(width: 16),
+                Text(
+                  '用时 ${record.duration! ~/ 60}分${record.duration! % 60}秒',
+                  style: const TextStyle(
+                    color: Color(0xFF888888),
+                    fontSize: 13,
                   ),
                 ),
-              ),
-              Text(
-                '+22 个',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-              ),
+              ],
             ],
           ),
         ],
       ),
     );
+  }
+
+  Color _getLevelColor(int levelType) {
+    switch (levelType) {
+      case 1:
+        return const Color(0xFF66CC77);
+      case 2:
+        return _primary;
+      case 3:
+        return const Color(0xFFFFA04D);
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _formatTime(DateTime time) {
+    final now = DateTime.now();
+    final diff = now.difference(time);
+
+    if (diff.inDays == 0) {
+      return '今天 ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    } else if (diff.inDays == 1) {
+      return '昨天 ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    } else if (diff.inDays < 7) {
+      final weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+      return '${weekdays[time.weekday - 1]} ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    } else {
+      return '${time.month}月${time.day}日';
+    }
   }
 }

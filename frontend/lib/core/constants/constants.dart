@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'api_constants.dart';
 
 // ========== 颜色常量 ==========
 class AppColors {
@@ -74,7 +75,7 @@ class AppStrings {
 
 // ========== 配置常量 ==========
 class AppConfig {
-  static const apiBaseUrl = 'http://localhost:8080/api';
+  static const apiBaseUrl = ApiConstants.baseUrl;
   static const timeoutSeconds = 30;
   static const pageSize = 20;
 }

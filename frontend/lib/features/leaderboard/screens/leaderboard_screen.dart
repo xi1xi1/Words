@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../services/leaderboard_service.dart';
+import '../../../models/leaderboard_model.dart';
+import '../../../core/network/api_exception.dart';
 
-/// 全服排行榜（UI 与稿一致，列表数据可后续接 API）
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
 
@@ -10,11 +12,48 @@ class LeaderboardScreen extends StatefulWidget {
 }
 
 class _LeaderboardScreenState extends State<LeaderboardScreen> {
-  int _tab = 2; // 0 今日 1 本周 2 总榜
+  final LeaderboardService _service = LeaderboardService();
+
+  int _tab = 2;
+  bool _loading = true;
+  LeaderboardResponse? _data;
+  String _errorMessage = '';
 
   static const _primary = Color(0xFF4A7DFF);
   static const _bg = Color(0xFFF7F8FA);
   static const _podiumBg = Color(0xFFFFF9E9);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+    try {
+      final type = _tab == 0 ? 'daily' : (_tab == 1 ? 'weekly' : 'total');
+      final result = await _service.getLeaderboard(type: type, limit: 50);
+      if (mounted) {
+        setState(() {
+          _data = result;
+          _loading = false;
+        });
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.message;
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(LeaderboardScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,12 +66,36 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: _tabBar(),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _podium(),
-          ),
-          const SizedBox(height: 8),
-          Expanded(child: _rankList()),
+          if (_loading)
+            const Expanded(child: Center(child: CircularProgressIndicator()))
+          else if (_errorMessage.isNotEmpty)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _errorMessage,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadData,
+                      child: const Text('重试'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else ...[
+            if (_data != null && _data!.entries.length >= 3)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _podium(),
+              ),
+            const SizedBox(height: 8),
+            Expanded(child: _rankList()),
+          ],
         ],
       ),
     );
@@ -127,22 +190,48 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   }
 
   Widget _podium() {
+    final entries = _data!.entries.take(3).toList();
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Expanded(child: _podiumCard(1, '学霸小王', '92,245', false)),
+        Expanded(
+          child: entries.length > 1
+              ? _podiumCard(
+                  entries[1].rank,
+                  entries[1].username,
+                  entries[1].score,
+                  false,
+                )
+              : _podiumCard(2, '---', 0, false),
+        ),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: _podiumCard(0, '单词达人', '95,580', true),
+            child: entries.isNotEmpty
+                ? _podiumCard(
+                    entries[0].rank,
+                    entries[0].username,
+                    entries[0].score,
+                    true,
+                  )
+                : _podiumCard(1, '---', 0, true),
           ),
         ),
-        Expanded(child: _podiumCard(2, '英语大神', '89,930', false)),
+        Expanded(
+          child: entries.length > 2
+              ? _podiumCard(
+                  entries[2].rank,
+                  entries[2].username,
+                  entries[2].score,
+                  false,
+                )
+              : _podiumCard(3, '---', 0, false),
+        ),
       ],
     );
   }
 
-  Widget _podiumCard(int rank, String name, String score, bool highlight) {
+  Widget _podiumCard(int rank, String name, int score, bool highlight) {
     final medals = [Icons.looks_one, Icons.looks_two, Icons.looks_3];
     final colors = [
       Colors.amber.shade700,
@@ -159,10 +248,14 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       ),
       child: Column(
         children: [
-          Icon(medals[rank], color: colors[rank], size: 28),
+          Icon(
+            medals[rank.clamp(0, 2)],
+            color: colors[rank.clamp(0, 2)],
+            size: 28,
+          ),
           const SizedBox(height: 6),
           Text(
-            '#${rank + 1}',
+            '#$rank',
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
           ),
           const SizedBox(height: 4),
@@ -174,7 +267,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            score,
+            _formatScore(score),
             style: const TextStyle(
               fontSize: 12,
               color: _primary,
@@ -186,14 +279,21 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     );
   }
 
+  String _formatScore(int score) {
+    if (score >= 10000) {
+      return '${(score / 1000).toStringAsFixed(1)}k';
+    }
+    return score.toString();
+  }
+
   Widget _rankList() {
-    final rows = [
-      _Row('单词达人', '95,580', 0, null),
-      _Row('学霸小王', '92,245', 1, null),
-      _Row('英语大神', '89,930', 2, '+1'),
-      _Row('记忆大师', '87,680', 3, '-1'),
-      _Row('背单词王', '85,420', 4, '+2'),
-    ];
+    final entries = _data?.entries ?? [];
+    final restEntries = entries.length > 3 ? entries.skip(3).toList() : entries;
+
+    if (restEntries.isEmpty) {
+      return const Center(child: Text('暂无更多数据'));
+    }
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       decoration: const BoxDecoration(
@@ -202,31 +302,20 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       ),
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(vertical: 12),
-        itemCount: rows.length,
+        itemCount: restEntries.length,
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (context, i) {
-          final r = rows[i];
+          final entry = restEntries[i];
           return ListTile(
-            leading: _leadingForRank(r.rankIdx),
+            leading: _leadingForRank(entry.rank),
             title: Text(
-              r.name,
+              entry.username,
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             subtitle: Text(
-              '${r.score} 积分',
+              '${_formatScore(entry.score)} 积分',
               style: const TextStyle(color: Color(0xFF888888)),
             ),
-            trailing: r.delta == null
-                ? null
-                : Text(
-                    r.delta!,
-                    style: TextStyle(
-                      color: r.delta!.startsWith('+')
-                          ? const Color(0xFF4CAF50)
-                          : const Color(0xFFF44336),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
           );
         },
       ),
@@ -234,30 +323,18 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   }
 
   Widget _leadingForRank(int idx) {
-    if (idx < 3) {
+    if (idx <= 3) {
       final icons = [
         Icons.emoji_events,
         Icons.emoji_events,
         Icons.emoji_events,
       ];
       final colors = [Colors.amber, Colors.blueGrey, Colors.brown];
-      return Icon(icons[idx], color: colors[idx], size: 32);
+      return Icon(icons[idx - 1], color: colors[idx - 1], size: 32);
     }
     return CircleAvatar(
       backgroundColor: const Color(0xFFF0F0F0),
-      child: Text(
-        '${idx + 1}',
-        style: const TextStyle(color: Color(0xFF333333)),
-      ),
+      child: Text('$idx', style: const TextStyle(color: Color(0xFF333333))),
     );
   }
-}
-
-class _Row {
-  final String name;
-  final String score;
-  final int rankIdx;
-  final String? delta;
-
-  _Row(this.name, this.score, this.rankIdx, this.delta);
 }

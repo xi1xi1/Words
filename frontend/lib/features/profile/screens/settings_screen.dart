@@ -20,14 +20,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final AuthService _authService = AuthService();
 
   static const _headerBlue = Color(0xFF5B86FF);
-  static const _bg = Color(0xFFF7F8FA);
 
   @override
   Widget build(BuildContext context) {
     final dark = context.watch<SettingsProvider>().isDarkMode;
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(child: _header(context)),
@@ -48,14 +47,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _sectionTitle('学习设置'),
                 _card([
                   _valueRow(Icons.track_changes_outlined, '每日学习目标', '30 词/天'),
-                  _divider,
+                  _divider(context),
                   _toggleRow(
                     icon: Icons.notifications_outlined,
                     label: '学习提醒',
                     value: _reminder,
                     onChanged: (v) => setState(() => _reminder = v),
                   ),
-                  _divider,
+                  _divider(context),
                   _toggleRow(
                     icon: Icons.volume_up_outlined,
                     label: '自动发音',
@@ -67,7 +66,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _sectionTitle('其他'),
                 _card([
                   _valueRow(Icons.language_outlined, '语言设置', '简体中文'),
-                  _divider,
+                  _divider(context),
                   _valueRow(Icons.info_outline, '关于', '版本 1.0.0'),
                 ]),
                 const SizedBox(height: 24),
@@ -139,20 +138,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _sectionTitle(String text) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8, left: 4),
-      child: Text(text, style: const TextStyle(color: Color(0xFF888888), fontSize: 14)),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: isDark ? const Color(0xFF9AA3AF) : const Color(0xFF888888),
+          fontSize: 14,
+        ),
+      ),
     );
   }
 
   Widget _card(List<Widget> children) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: isDark ? Colors.black.withValues(alpha: 0.18) : Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -162,13 +169,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  static const _divider = Divider(height: 1, indent: 56, color: Color(0xFFEFEFEF));
+  Widget _divider(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Divider(
+      height: 1,
+      indent: 56,
+      color: isDark ? const Color(0xFF2B3138) : const Color(0xFFEFEFEF),
+    );
+  }
 
   Widget _valueRow(IconData icon, String label, String value) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ListTile(
-      leading: Icon(icon, color: const Color(0xFF666666), size: 22),
-      title: Text(label, style: const TextStyle(color: Color(0xFF333333), fontSize: 15)),
-      trailing: Text(value, style: const TextStyle(color: Color(0xFF8E9297), fontSize: 14)),
+      leading: Icon(icon, color: isDark ? const Color(0xFFCDD5DF) : const Color(0xFF666666), size: 22),
+      title: Text(
+        label,
+        style: TextStyle(color: isDark ? const Color(0xFFE5E7EB) : const Color(0xFF333333), fontSize: 15),
+      ),
+      trailing: Text(
+        value,
+        style: TextStyle(color: isDark ? const Color(0xFF9AA3AF) : const Color(0xFF8E9297), fontSize: 14),
+      ),
     );
   }
 
@@ -178,9 +199,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ListTile(
-      leading: Icon(icon, color: const Color(0xFF666666), size: 22),
-      title: Text(label, style: const TextStyle(color: Color(0xFF333333), fontSize: 15)),
+      leading: Icon(icon, color: isDark ? const Color(0xFFCDD5DF) : const Color(0xFF666666), size: 22),
+      title: Text(
+        label,
+        style: TextStyle(color: isDark ? const Color(0xFFE5E7EB) : const Color(0xFF333333), fontSize: 15),
+      ),
       trailing: Switch.adaptive(
         value: value,
         activeTrackColor: _headerBlue.withValues(alpha: 0.45),
@@ -192,7 +217,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _logoutCard(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: _loggingOut
@@ -205,7 +230,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 try {
                   await _authService.logout();
                   if (!mounted) return;
-                  userProvider.logout();
+                  await userProvider.clearAuth();
+                  if (!mounted) return;
                   router.go('/login');
                 } catch (_) {
                   if (!mounted) return;
