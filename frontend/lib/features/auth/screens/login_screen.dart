@@ -1,13 +1,20 @@
 // frontend/lib/features/auth/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../../services/auth_service.dart';
 import '../../../core/network/api_exception.dart';
-import 'register_screen.dart';
-import '../../../features/home/screens/home_screen.dart';
+import '../../../core/providers/user_provider.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? initialUsername;
+  final String? initialPassword;
+
+  const LoginScreen({
+    super.key,
+    this.initialUsername,
+    this.initialPassword,
+  });
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -21,6 +28,23 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
 
+  @override
+  void initState() {
+    super.initState();
+    _usernameController.text = widget.initialUsername ?? '';
+    _passwordController.text = widget.initialPassword ?? '';
+  }
+
+  @override
+  void didUpdateWidget(covariant LoginScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialUsername != widget.initialUsername ||
+        oldWidget.initialPassword != widget.initialPassword) {
+      _usernameController.text = widget.initialUsername ?? '';
+      _passwordController.text = widget.initialPassword ?? '';
+    }
+  }
+
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -32,17 +56,20 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
 
-      // 登录成功后
       if (mounted) {
+        await context.read<UserProvider>().setAuth(
+          token: result.token,
+          userInfo: result.userInfo,
+        );
+
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('欢迎回来，${result.userInfo.username}'),
             backgroundColor: Colors.green,
           ),
         );
-
-        // 跳转到首页（使用 go_router）
-        context.go('/'); // 👈 改这里，用 context.go 代替 Navigator
+        context.go('/');
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -66,7 +93,6 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo
                 const Icon(Icons.book, size: 80, color: Color(0xFF4F7CFF)),
                 const SizedBox(height: 24),
                 const Text(
@@ -78,8 +104,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 48),
-
-                // 用户名输入框
                 TextFormField(
                   controller: _usernameController,
                   decoration: const InputDecoration(
@@ -98,8 +122,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-
-                // 密码输入框
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -131,8 +153,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                 ),
                 const SizedBox(height: 32),
-
-                // 登录按钮
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -157,21 +177,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // 注册跳转
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text('还没有账号？'),
                     TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const RegisterScreen(),
-                          ),
-                        );
-                      },
+                      onPressed: () => context.push('/register'),
                       child: const Text(
                         '立即注册',
                         style: TextStyle(color: Color(0xFF4F7CFF)),

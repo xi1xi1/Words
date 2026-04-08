@@ -1,26 +1,42 @@
 package com.zychen.backend.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zychen.backend.dto.request.AddToWordbookRequest;
+import com.zychen.backend.config.JwtUtil;
+import com.zychen.backend.service.AIService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.doNothing;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@Sql(scripts = "/sql/challenge-test-data.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS)
 public class WordbookControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private JwtUtil jwtUtil;
+
+    @MockBean
+    private AIService aiService;
+
+    private String bearerToken;
+
+    @BeforeEach
+    void setUp() {
+        bearerToken = "Bearer " + jwtUtil.generateToken(1L, "jwt_challenge_user");
+        doNothing().when(aiService).generateAndPersistExample(anyLong(), anyString(), nullable(String.class));
+    }
 
     /**
      * 测试1：获取生词本列表成功
@@ -30,10 +46,11 @@ public class WordbookControllerTest {
         mockMvc.perform(get("/api/wordbook/list")
                         .param("page", "1")
                         .param("size", "10")
-                        .header("Authorization", "Bearer mock-token"))
+                        .header("Authorization", bearerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.content").exists())
+                .andExpect(jsonPath("$.message").value("success"))
+                .andExpect(jsonPath("$.data.content").isArray())
                 .andExpect(jsonPath("$.data.total").exists())
                 .andExpect(jsonPath("$.data.page").value(1))
                 .andExpect(jsonPath("$.data.size").value(10));
@@ -45,9 +62,10 @@ public class WordbookControllerTest {
     @Test
     void getWordbookList_default_pagination() throws Exception {
         mockMvc.perform(get("/api/wordbook/list")
-                        .header("Authorization", "Bearer mock-token"))
+                        .header("Authorization", bearerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.message").value("success"))
                 .andExpect(jsonPath("$.data.page").value(1))
                 .andExpect(jsonPath("$.data.size").value(20));
     }
@@ -57,30 +75,22 @@ public class WordbookControllerTest {
      */
     @Test
     void addToWordbook_success() throws Exception {
-        AddToWordbookRequest request = new AddToWordbookRequest();
-        request.setWordId(1L);
-
-        mockMvc.perform(post("/api/wordbook/add")
-                        .header("Authorization", "Bearer mock-token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(post("/api/wordbook/add/1")
+                        .header("Authorization", bearerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.message").value("已加入生词本"));
     }
 
     /**
-     * 测试4：添加单词失败 - 缺少 wordId
+     * 测试4：添加单词失败 - wordId 非数字
      */
     @Test
-    void addToWordbook_failed_missing_wordId() throws Exception {
-        String request = "{}";  // 空对象
-
-        mockMvc.perform(post("/api/wordbook/add")
-                        .header("Authorization", "Bearer mock-token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(request))
-                .andExpect(status().isBadRequest());
+    void addToWordbook_failed_invalid_wordId() throws Exception {
+        mockMvc.perform(post("/api/wordbook/add/abc")
+                        .header("Authorization", bearerToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
     }
 
     /**
@@ -89,7 +99,7 @@ public class WordbookControllerTest {
     @Test
     void removeFromWordbook_success() throws Exception {
         mockMvc.perform(delete("/api/wordbook/remove/1")
-                        .header("Authorization", "Bearer mock-token"))
+                        .header("Authorization", bearerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.message").value("已移除"));
@@ -101,11 +111,19 @@ public class WordbookControllerTest {
     @Test
     void getAIContent_success() throws Exception {
         mockMvc.perform(get("/api/wordbook/ai/1")
-                        .header("Authorization", "Bearer mock-token"))
+                        .header("Authorization", bearerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.message").value("success"))
                 .andExpect(jsonPath("$.data.word").exists())
-                .andExpect(jsonPath("$.data.examples").exists())
-                .andExpect(jsonPath("$.data.dialogues").exists());
+                .andExpect(jsonPath("$.data.examples").isArray())
+                .andExpect(jsonPath("$.data.dialogues").isArray());
+    }
+
+    @Test
+    void getWordbookList_unauthorized() throws Exception {
+        mockMvc.perform(get("/api/wordbook/list"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(401));
     }
 }

@@ -1,5 +1,4 @@
 // frontend/lib/models/word_model.dart
-
 class Word {
   final int id;
   final String word;
@@ -7,6 +6,12 @@ class Word {
   final List<String> meaning;
   final List<String>? example;
   final String? audioUrl;
+  final String? levelLabel;
+  final String? partOfSpeech;
+  final List<String>? synonyms;
+  final List<String>? antonyms;
+  final int? stage;
+  final List<String>? options;
 
   Word({
     required this.id,
@@ -15,11 +20,34 @@ class Word {
     required this.meaning,
     this.example,
     this.audioUrl,
+    this.levelLabel,
+    this.partOfSpeech,
+    this.synonyms,
+    this.antonyms,
+    this.stage,
+    this.options,
   });
 
   factory Word.fromJson(Map<String, dynamic> json) {
+    final exampleValue = json['example'];
+    final parsedExample = exampleValue is List<dynamic>
+        ? exampleValue.map((e) => e.toString()).toList()
+        : exampleValue is String
+        ? <String>[exampleValue]
+        : null;
+
+    final optionsValue = json['options'];
+    final parsedOptions = optionsValue is List<dynamic>
+        ? optionsValue.map((e) => e.toString()).toList()
+        : optionsValue is String
+        ? <String>[optionsValue]
+        : null;
+
     return Word(
-      id: (json['id'] as num?)?.toInt() ?? 0,
+      id:
+          (json['id'] as num?)?.toInt() ??
+          (json['wordId'] as num?)?.toInt() ??
+          0,
       word: json['word']?.toString() ?? '',
       phonetic: json['phonetic']?.toString() ?? '',
       meaning:
@@ -27,10 +55,19 @@ class Word {
               ?.map((e) => e.toString())
               .toList() ??
           [],
-      example: (json['example'] as List<dynamic>?)
+      example: parsedExample,
+      audioUrl: json['audioUrl']?.toString(),
+      levelLabel: json['levelLabel']?.toString() ?? json['level']?.toString(),
+      partOfSpeech:
+          json['partOfSpeech']?.toString() ?? json['wordClass']?.toString(),
+      synonyms: (json['synonyms'] as List<dynamic>?)
           ?.map((e) => e.toString())
           .toList(),
-      audioUrl: json['audioUrl']?.toString(),
+      antonyms: (json['antonyms'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList(),
+      stage: (json['stage'] as num?)?.toInt(),
+      options: parsedOptions,
     );
   }
 
@@ -42,35 +79,39 @@ class Word {
       'meaning': meaning,
       'example': example,
       'audioUrl': audioUrl,
+      'levelLabel': levelLabel,
+      'partOfSpeech': partOfSpeech,
+      'synonyms': synonyms,
+      'antonyms': antonyms,
     };
   }
 }
 
 class LearnProgress {
-  final int learnedCount;
+  final int completedCount;
   final int totalCount;
-  final double progress;
 
-  LearnProgress({
-    required this.learnedCount,
-    required this.totalCount,
-    required this.progress,
-  });
+  LearnProgress({required this.completedCount, required this.totalCount});
 
   factory LearnProgress.fromJson(Map<String, dynamic> json) {
     return LearnProgress(
-      learnedCount: (json['learnedCount'] as num?)?.toInt() ?? 0,
-      totalCount: (json['totalCount'] as num?)?.toInt() ?? 0,
-      progress: (json['progress'] as num?)?.toDouble() ?? 0.0,
+      completedCount:
+          (json['completedCount'] as num?)?.toInt() ??
+          (json['learnedCount'] as num?)?.toInt() ??
+          (json['todayLearned'] as num?)?.toInt() ??
+          0,
+      totalCount:
+          (json['totalCount'] as num?)?.toInt() ??
+          (json['todayTarget'] as num?)?.toInt() ??
+          0,
     );
   }
 
+  int get learnedCount => completedCount;
+  double get progress => totalCount == 0 ? 0 : completedCount / totalCount;
+
   Map<String, dynamic> toJson() {
-    return {
-      'learnedCount': learnedCount,
-      'totalCount': totalCount,
-      'progress': progress,
-    };
+    return {'completedCount': completedCount, 'totalCount': totalCount};
   }
 }
 
@@ -87,8 +128,6 @@ class DailyWordsResponse {
 
   factory DailyWordsResponse.fromJson(Map<String, dynamic> json) {
     final data = json['data'];
-
-    // 处理 data 为 null 的情况
     if (data == null || data is! Map<String, dynamic>) {
       return DailyWordsResponse(newWords: [], reviewWords: [], total: 0);
     }
@@ -103,7 +142,9 @@ class DailyWordsResponse {
       reviewWords: reviewWordsList
           .map((e) => Word.fromJson(e as Map<String, dynamic>))
           .toList(),
-      total: (data['total'] as num?)?.toInt() ?? 0,
+      total:
+          (data['total'] as num?)?.toInt() ??
+          newWordsList.length + reviewWordsList.length,
     );
   }
 

@@ -18,11 +18,13 @@ class AppTheme {
     ),
 
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: AppColors.cardLight,
+      backgroundColor: Colors.white,
       selectedItemColor: AppColors.primaryLight,
-      unselectedItemColor: AppColors.textSecondaryLight,
+      unselectedItemColor: Color(0xFF8E9297),
+      selectedLabelStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+      unselectedLabelStyle: TextStyle(fontSize: 11),
       type: BottomNavigationBarType.fixed,
-      elevation: 8,
+      elevation: 0,
     ),
 
     textTheme: const TextTheme(

@@ -1,16 +1,27 @@
 import 'package:flutter/material.dart';
+import 'api_constants.dart';
 
 // ========== 颜色常量 ==========
 class AppColors {
-  // 浅色模式
-  static const primaryLight = Color(0xFF4F7CFF);
-  static const secondaryLight = Color(0xFF6BCB77);
-  static const accentLight = Color(0xFFFF9F43);
-  static const backgroundLight = Color(0xFFF7F9FC);
+  // 浅色模式（与 UI 稿对齐的主色）
+  static const primaryLight = Color(0xFF4D7CFF);
+  static const secondaryLight = Color(0xFF66CC77);
+  static const accentLight = Color(0xFFFFA04D);
+  static const backgroundLight = Color(0xFFF7F8FA);
   static const cardLight = Color(0xFFFFFFFF);
   static const textPrimaryLight = Color(0xFF1F2937);
   static const textSecondaryLight = Color(0xFF6B7280);
-  static const dividerLight = Color(0xFFE5E7EB);
+  static const dividerLight = Color(0xFFE8E8E8);
+
+  /// 设计稿专用别名
+  static const designBlue = Color(0xFF4D7CFF);
+  static const designGreen = Color(0xFF66CC77);
+  static const designOrange = Color(0xFFFFA04D);
+  static const designPageBg = Color(0xFFF7F8FA);
+  static const designNavy = Color(0xFF1A2B48);
+  static const designTextBody = Color(0xFF2D3436);
+  static const designMuted = Color(0xFF636E72);
+  static const designBorder = Color(0xFFE0E0E0);
 
   // 深色模式
   static const primaryDark = Color(0xFF6D8CFF);
@@ -64,7 +75,7 @@ class AppStrings {
 
 // ========== 配置常量 ==========
 class AppConfig {
-  static const apiBaseUrl = 'http://localhost:8080/api';
+  static const apiBaseUrl = ApiConstants.baseUrl;
   static const timeoutSeconds = 30;
   static const pageSize = 20;
 }

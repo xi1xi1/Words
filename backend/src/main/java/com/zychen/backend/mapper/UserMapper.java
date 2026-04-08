@@ -39,4 +39,10 @@ public interface UserMapper {
      */
     @Update("UPDATE user SET avatar = #{avatar} WHERE id = #{id}")
     int updateAvatar(@Param("id") Long id, @Param("avatar") String avatar);
+
+    /**
+     * 更新用户密码
+     */
+    @Update("UPDATE user SET password = #{password} WHERE id = #{id}")
+    int updatePassword(@Param("id") Long id, @Param("password") String password);
 }

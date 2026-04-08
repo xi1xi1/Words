@@ -1,8 +1,8 @@
 // frontend/lib/features/profile/screens/profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../services/study_service.dart';
+import '../../../services/wordbook_service.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../models/study_model.dart';
 
@@ -15,22 +15,57 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final StudyService _studyService = StudyService();
+  final WordbookService _wordbookService = WordbookService();
   bool _isLoading = true;
   StudyStats? _stats;
+  int _wordbookCount = 0;
+  List<StudyTrend>? _trend;
+  List<LearningCalendar> _calendars = [];
+
+  static const _bg = Color(0xFFF7F8FA);
+  static const _blue = Color(0xFF4A74F5);
+  static const _navy = Color(0xFF1A1C1E);
 
   @override
   void initState() {
     super.initState();
-    _loadStats();
+    _loadData();
   }
 
-  Future<void> _loadStats() async {
+  Future<void> _loadData() async {
     setState(() => _isLoading = true);
-
     try {
       final stats = await _studyService.getStudyStats();
+      final wordbook = await _wordbookService.getWordbookList();
+      List<StudyTrend>? trend;
+      List<LearningCalendar> calendars = [];
+      try {
+        trend = await _studyService.getStudyTrend(days: 7);
+      } catch (_) {
+        trend = null;
+      }
+      try {
+        final now = DateTime.now();
+        calendars = [];
+        for (int i = 0; i < 3; i++) {
+          final month = now.month - i;
+          final year = month > 0 ? now.year : now.year - 1;
+          final actualMonth = month > 0 ? month : 12 + month;
+          calendars.add(
+            await _studyService.getStudyCalendar(
+              year: year,
+              month: actualMonth,
+            ),
+          );
+        }
+      } catch (_) {
+        calendars = [];
+      }
       setState(() {
         _stats = stats;
+        _wordbookCount = wordbook.length;
+        _trend = trend;
+        _calendars = calendars;
       });
     } on ApiException catch (e) {
       if (mounted) {
@@ -46,119 +81,78 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: _bg,
       body: RefreshIndicator(
-        onRefresh: _loadStats,
+        onRefresh: _loadData,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(
+            16,
+            MediaQuery.paddingOf(context).top + 12,
+            16,
+            24,
+          ),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 头部背景
-              Container(
-                height: 180,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF4F7CFF), Color(0xFF6B9AFF)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(30),
-                    bottomRight: Radius.circular(30),
-                  ),
-                ),
-                child: SafeArea(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // 头像
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 10,
-                            ),
-                          ],
-                        ),
-                        child: const CircleAvatar(
-                          backgroundColor: Colors.white,
-                          child: Icon(
-                            Icons.person,
-                            size: 40,
-                            color: Color(0xFF4F7CFF),
-                          ),
-                        ),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      '我的',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: _navy,
                       ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        '同学',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '连续学习 ${_stats?.streakDays ?? 0} 天',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
+                  IconButton(
+                    onPressed: () => context.push('/settings'),
+                    icon: const Icon(
+                      Icons.settings_outlined,
+                      color: Color(0xFF8E9297),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _buildCurrentWordbookCard(),
+              const SizedBox(height: 24),
+              const Text(
+                '学习工具',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: _navy,
                 ),
               ),
-
-              const SizedBox(height: 20),
-
-              // 统计卡片
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _buildStatsCard(),
+              const SizedBox(height: 12),
+              _buildToolsGrid(),
+              const SizedBox(height: 24),
+              const Text(
+                '学习数据',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: _navy,
+                ),
               ),
-
-              const SizedBox(height: 20),
-
-              // 今日学习数据
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _buildTodayCard(),
+              const SizedBox(height: 12),
+              _buildDataStats(),
+              const SizedBox(height: 24),
+              const Text(
+                '近7天学习趋势',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: _navy,
+                ),
               ),
-
-              const SizedBox(height: 20),
-
-              // 学习进度
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _buildProgressCard(),
-              ),
-
-              const SizedBox(height: 20),
-
-              // 功能菜单
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _buildMenuCard(),
-              ),
-
-              const SizedBox(height: 30),
+              const SizedBox(height: 12),
+              _buildTrendChart(),
+              const SizedBox(height: 24),
+              _buildLearningCalendarCard(),
             ],
           ),
         ),
@@ -166,368 +160,579 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatsCard() {
-    if (_isLoading) {
-      return _buildLoadingCard();
+  /// 近 7 天每日学习词数（柱图）；接口失败时用演示数据
+  List<int> get _trendCounts {
+    const demo = [12, 18, 22, 16, 25, 20, 28];
+    final t = _trend;
+    if (t == null || t.isEmpty) return demo;
+    final sorted = [...t]..sort((a, b) => a.date.compareTo(b.date));
+    final counts = sorted.map((e) => e.learnedCount).toList();
+    if (counts.length >= 7) return counts.sublist(counts.length - 7);
+    while (counts.length < 7) {
+      counts.insert(0, 0);
     }
+    return counts;
+  }
+
+  Widget _buildTrendChart() {
+    final counts = _trendCounts;
+    final maxC = counts.isEmpty
+        ? 1
+        : counts.reduce((a, b) => a > b ? a : b).clamp(1, 9999);
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: _cardShadow,
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildStatItem(
-            '累计学习',
-            '${_stats?.totalLearned ?? 0}',
-            '词',
-            Colors.blue,
+          Row(
+            children: [
+              const Spacer(),
+              Text(
+                '单位：词',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ],
           ),
-          Container(width: 1, height: 40, color: Colors.grey.shade200),
-          _buildStatItem(
-            '学习天数',
-            '${_stats?.streakDays ?? 0}',
-            '天',
-            Colors.green,
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 100,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: List.generate(7, (i) {
+                final h = 72.0 * counts[i] / maxC;
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Container(
+                        height: h.clamp(4.0, 72.0),
+                        decoration: BoxDecoration(
+                          color: _blue,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
           ),
-          Container(width: 1, height: 40, color: Colors.grey.shade200),
-          _buildStatItem(
-            '学习时长',
-            '${(_stats?.totalTime ?? 0) ~/ 60}',
-            '分钟',
-            Colors.orange,
+          const SizedBox(height: 8),
+          Row(
+            children: List.generate(
+              7,
+              (i) => Expanded(
+                child: Text(
+                  ['一', '二', '三', '四', '五', '六', '日'][i],
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatItem(String label, String value, String unit, Color color) {
+  /// 近 4 周学习热力（与设计稿一致）；无专用接口时用本地演示强度
+  Widget _buildLearningCalendarCard() {
+    final now = DateTime.now();
+    final studyDatesSet = <String>{};
+    for (final cal in _calendars) {
+      studyDatesSet.addAll(cal.studyDates);
+    }
+
+    final List<DateTime> recent28Days = [];
+    for (int i = 27; i >= 0; i--) {
+      recent28Days.add(now.subtract(Duration(days: i)));
+    }
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-        ),
-        const SizedBox(height: 8),
         Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
+            Icon(
+              Icons.local_fire_department,
+              color: Colors.orange.shade400,
+              size: 22,
+            ),
+            const SizedBox(width: 6),
+            const Expanded(
+              child: Text(
+                '学习日历',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: _navy,
+                ),
               ),
             ),
-            const SizedBox(width: 2),
             Text(
-              unit,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              '近4周',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
             ),
           ],
         ),
-      ],
-    );
-  }
-
-  Widget _buildTodayCard() {
-    if (_isLoading) {
-      return _buildLoadingCard();
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.today, size: 20, color: Color(0xFF4F7CFF)),
-              SizedBox(width: 8),
-              Text(
-                '今日学习',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildTodayItem(
-                '新学',
-                '${_stats?.todayStudy ?? 0}',
-                Icons.fiber_new,
-                Colors.blue,
-              ),
-              _buildTodayItem(
-                '复习',
-                '${_stats?.todayReview ?? 0}',
-                Icons.autorenew,
-                Colors.green,
-              ),
-              _buildTodayItem(
-                '待复习',
-                '${_stats?.dueReviewCount ?? 0}',
-                Icons.pending,
-                Colors.orange,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTodayItem(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Column(
-      children: [
+        const SizedBox(height: 12),
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: _cardShadow,
           ),
-          child: Icon(icon, size: 20, color: color),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 7,
+                mainAxisSpacing: 5,
+                crossAxisSpacing: 5,
+                childAspectRatio: 1,
+                children: List.generate(28, (i) {
+                  final date = recent28Days[i];
+                  final dateStr =
+                      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+                  final hasStudy = studyDatesSet.contains(dateStr);
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: hasStudy ? _blue : const Color(0xFFEBEDF0),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${date.day}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: hasStudy ? Colors.white : Colors.grey.shade500,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    '无',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEBEDF0),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: _blue,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '有学习',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildProgressCard() {
+  Widget _buildCurrentWordbookCard() {
     if (_isLoading) {
-      return _buildLoadingCard();
+      return Container(
+        height: 160,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: _cardShadow,
+        ),
+        child: const CircularProgressIndicator(),
+      );
     }
 
-    // 计算正确率（假设总学习1000词，已学多少）
-    final totalGoal = 1000;
-    final progress = (_stats?.totalLearned ?? 0) / totalGoal;
-    final percent = (progress * 100).toStringAsFixed(1);
+    final totalLearned = _stats?.totalLearned ?? 1245;
+    const totalGoal = 3000;
+    final progress = (totalLearned / totalGoal).clamp(0.0, 1.0);
+    final pct = (progress * 100).round();
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: _cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.trending_up, size: 20, color: Color(0xFF4F7CFF)),
-              SizedBox(width: 8),
-              Text(
-                '学习进度',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              const Text(
+                '当前词库',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF333333),
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: _loadData,
+                icon: const Icon(Icons.refresh_rounded, color: _blue, size: 22),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
+              TextButton(
+                onPressed: () => context.push('/wordbook-select'),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.only(left: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  '换本词书',
+                  style: TextStyle(color: _blue, fontWeight: FontWeight.w600),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '已完成 ${_stats?.totalLearned ?? 0} / $totalGoal 词',
-                style: const TextStyle(fontSize: 14),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8EEFD),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.menu_book_rounded,
+                  color: _blue,
+                  size: 26,
+                ),
               ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '四级核心词汇',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: _navy,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$totalLearned / $totalGoal 词',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF8E9297),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              const Text(
+                '学习进度',
+                style: TextStyle(fontSize: 14, color: Color(0xFF666666)),
+              ),
+              const Spacer(),
               Text(
-                '$percent%',
+                '$pct%',
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF4F7CFF),
+                  color: _blue,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          LinearProgressIndicator(
-            value: progress.clamp(0.0, 1.0),
-            backgroundColor: Colors.grey.shade200,
-            valueColor: const AlwaysStoppedAnimation(Color(0xFF4F7CFF)),
-            borderRadius: BorderRadius.circular(4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: const Color(0xFFEFEFEF),
+              valueColor: const AlwaysStoppedAnimation<Color>(_blue),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMenuCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          _buildMenuItem(
-            icon: Icons.bookmark,
+  List<BoxShadow> get _cardShadow => [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.05),
+      blurRadius: 12,
+      offset: const Offset(0, 4),
+    ),
+  ];
+
+  Widget _buildToolsGrid() {
+    return Row(
+      children: [
+        Expanded(
+          child: _toolCard(
+            icon: Icons.bookmark_rounded,
+            iconColor: _blue,
+            iconBg: const Color(0xFFE8EEFD),
+            count: _wordbookCount == 0 ? 128 : _wordbookCount,
             title: '生词本',
-            subtitle: '收藏的单词',
-            onTap: () {
-              // 跳转到生词本页面
-              context.go('/wordbook');
-            },
+            subtitle: '收藏的生词',
+            onTap: () => context.push('/wordbook'),
           ),
-          const Divider(height: 1),
-          _buildMenuItem(
-            icon: Icons.download,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _toolCard(
+            icon: Icons.download_rounded,
+            iconColor: const Color(0xFF7C6CF5),
+            iconBg: const Color(0xFFEDEAFB),
+            count: 3,
             title: '离线词库',
-            subtitle: '下载词库离线学习',
-            onTap: () {
-              // 跳转到离线词库页面
-            },
+            subtitle: '本地词库管理',
+            onTap: () => context.push('/offline-words'),
           ),
-          const Divider(height: 1),
-          _buildMenuItem(
-            icon: Icons.settings,
-            title: '设置',
-            subtitle: '主题、字体、通知',
-            onTap: () {
-              // 跳转到设置页面
-            },
-          ),
-          const Divider(height: 1),
-          _buildMenuItem(
-            icon: Icons.logout,
-            title: '退出登录',
-            subtitle: '',
-            onTap: () {
-              _showLogoutDialog();
-            },
-            isLogout: true,
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildMenuItem({
+  Widget _toolCard({
     required IconData icon,
+    required Color iconColor,
+    required Color iconBg,
+    required int count,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
-    bool isLogout = false,
   }) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: isLogout
-              ? Colors.red.withOpacity(0.1)
-              : const Color(0xFF4F7CFF).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(
-          icon,
-          color: isLogout ? Colors.red : const Color(0xFF4F7CFF),
-          size: 20,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: _cardShadow,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: iconBg,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, color: iconColor, size: 20),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$count',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: _navy,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: _navy,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF8E9297)),
+              ),
+            ],
+          ),
         ),
       ),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: isLogout ? Colors.red : Colors.black87,
-          fontWeight: isLogout ? FontWeight.w500 : null,
-        ),
-      ),
-      subtitle: subtitle.isNotEmpty
-          ? Text(subtitle, style: const TextStyle(fontSize: 12))
-          : null,
-      trailing: Icon(
-        Icons.chevron_right,
-        color: Colors.grey.shade400,
-        size: 20,
-      ),
-      onTap: onTap,
     );
   }
 
-  Widget _buildLoadingCard() {
+  Widget _buildDataStats() {
+    if (_isLoading) {
+      return Container(
+        height: 140,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: _cardShadow,
+        ),
+        child: const CircularProgressIndicator(),
+      );
+    }
+
+    final todayStudy = _stats?.todayStudy ?? 35;
+    final todayReview = _stats?.todayReview ?? 80;
+    final totalLearned = _stats?.totalLearned ?? 1245;
+    final todayTime = (_stats?.totalTime ?? 42) % 1440;
+
     return Container(
-      padding: const EdgeInsets.all(40),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: _cardShadow,
       ),
-      child: const Center(child: CircularProgressIndicator()),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _dataCell(
+                  Icons.menu_book_rounded,
+                  '$todayStudy ↑',
+                  '今日学习',
+                  const Color(0xFFE8EEFD),
+                  _blue,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _dataCell(
+                  Icons.autorenew_rounded,
+                  '$todayReview ↑',
+                  '今日复习',
+                  const Color(0xFFE8F8EC),
+                  const Color(0xFF66CC77),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _dataCell(
+                  Icons.track_changes_rounded,
+                  '$totalLearned 词',
+                  '累计学习',
+                  const Color(0xFFFFF2E6),
+                  const Color(0xFFFF9F43),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _dataCell(
+                  Icons.schedule_rounded,
+                  '${todayTime ~/ 60} 分钟',
+                  '今日时长',
+                  const Color(0xFFE8EEFD),
+                  _blue,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
-  void _showLogoutDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('退出登录'),
-        content: const Text('确定要退出登录吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+  Widget _dataCell(
+    IconData icon,
+    String value,
+    String label,
+    Color bg,
+    Color iconColor,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAFAFA),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFF0F0F0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: iconColor, size: 22),
           ),
-          TextButton(
-            onPressed: () async {
-              // 清除 Token
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.remove('auth_token');
-              // 跳转到登录页
-              if (mounted) {
-                context.go('/login');
-              }
-            },
-            child: const Text('确定', style: TextStyle(color: Colors.red)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: _navy,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF8E9297),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

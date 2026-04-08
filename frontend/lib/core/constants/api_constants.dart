@@ -1,9 +1,9 @@
 // lib/core/constants/api_constants.dart
 class ApiConstants {
   // 基础URL
-  //static const String baseUrl = 'http://localhost:8080/api';
+  static const String baseUrl = 'http://172.20.10.2:8080/api';
   // 使用你的本地 Mock 地址
-  static const String baseUrl = 'http://127.0.0.1:4523/m1/7994468-7748376-7360578';
+  // static const String baseUrl = 'http://127.0.0.1:4523/m1/7994468-7748376-7360578';
   static const String productionUrl = 'https://api.beileme.com/api';
 
   // 超时配置

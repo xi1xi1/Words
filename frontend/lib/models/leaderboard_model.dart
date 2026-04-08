@@ -1,50 +1,48 @@
+// frontend/lib/models/leaderboard_model.dart
 class LeaderboardResponse {
   final List<LeaderboardEntry> entries;
-  final int total;
+  final int? myRank;
 
-  LeaderboardResponse({required this.entries, required this.total});
+  LeaderboardResponse({required this.entries, this.myRank});
 
   factory LeaderboardResponse.fromJson(Map<String, dynamic> json) {
-    final data = json['data'] as Map<String, dynamic>;
-    final list = data['list'] as List<dynamic>;
+    final data = json['data'] as Map<String, dynamic>? ?? {};
+    final list = data['list'] as List<dynamic>? ?? [];
     return LeaderboardResponse(
       entries: list
           .map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>))
           .toList(),
-      total: data['total'] as int,
+      myRank: (data['myRank'] as num?)?.toInt(),
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'data': {'list': entries.map((e) => e.toJson()).toList(), 'total': total},
-    };
   }
 }
 
 class LeaderboardEntry {
   final int rank;
+  final int userId;
   final String username;
-  final int score;
-  final int level;
+  final String? avatar;
+  final int totalScore;
 
   LeaderboardEntry({
     required this.rank,
+    required this.userId,
     required this.username,
-    required this.score,
-    required this.level,
+    this.avatar,
+    required this.totalScore,
   });
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
     return LeaderboardEntry(
-      rank: json['rank'] as int,
-      username: json['username'] as String,
-      score: json['score'] as int,
-      level: json['level'] as int,
+      rank: (json['rank'] as num?)?.toInt() ?? 0,
+      userId: (json['userId'] as num?)?.toInt() ?? 0,
+      username: json['username']?.toString() ?? '',
+      avatar: json['avatar']?.toString(),
+      totalScore: (json['totalScore'] as num?)?.toInt() ??
+          (json['score'] as num?)?.toInt() ??
+          0,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {'rank': rank, 'username': username, 'score': score, 'level': level};
-  }
+  int get score => totalScore;
 }

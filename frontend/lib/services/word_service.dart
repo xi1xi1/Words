@@ -7,32 +7,28 @@ class WordService {
   final ApiClient _apiClient = ApiClient();
 
   Future<DailyWordsResponse> getDailyWords() async {
-    print('调用 getDailyWords API'); // 👈 添加
     final response = await _apiClient.get(ApiConstants.wordsDaily);
-    print('API 原始响应: $response'); // 👈 添加
-
     return DailyWordsResponse.fromJson(response);
   }
 
   Future<({Word? nextWord, LearnProgress progress})> submitLearnResult({
     required int wordId,
     required bool isCorrect,
+    required int stage,
   }) async {
     final response = await _apiClient.post(
       ApiConstants.wordsLearn,
-      data: {'wordId': wordId, 'isCorrect': isCorrect},
+      data: {'wordId': wordId, 'isCorrect': isCorrect, 'stage': stage},
     );
 
-    final data = response['data'] as Map<String, dynamic>;
-    Word? nextWord;
-    if (data['nextWord'] != null) {
-      nextWord = Word.fromJson(data['nextWord'] as Map<String, dynamic>);
-    }
-    final progress = LearnProgress.fromJson(
-      data['progress'] as Map<String, dynamic>,
-    );
+    final data = response['data'] as Map<String, dynamic>? ?? {};
+    final nextWordData = data['nextWord'] as Map<String, dynamic>?;
+    final progress = LearnProgress.fromJson(data);
 
-    return (nextWord: nextWord, progress: progress);
+    return (
+      nextWord: nextWordData == null ? null : Word.fromJson(nextWordData),
+      progress: progress,
+    );
   }
 
   Future<List<Word>> searchWords({
@@ -45,15 +41,13 @@ class WordService {
       queryParams: {'keyword': keyword, 'page': page, 'size': size},
     );
 
-    final data = response['data'] as Map<String, dynamic>;
-    final list = data['list'] as List<dynamic>;
+    final data = response['data'] as Map<String, dynamic>? ?? {};
+    final list = (data['content'] ?? data['list'] ?? <dynamic>[]) as List<dynamic>;
     return list.map((e) => Word.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<Word> getWordDetail(int wordId) async {
-    final response = await _apiClient.get(
-      '${ApiConstants.wordsDetail}/$wordId',
-    );
+    final response = await _apiClient.get('${ApiConstants.wordsDetail}/$wordId');
     final data = response['data'] as Map<String, dynamic>;
     return Word.fromJson(data);
   }

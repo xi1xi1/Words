@@ -1,10 +1,8 @@
 // frontend/lib/features/auth/screens/register_screen.dart
-
 import 'package:flutter/material.dart';
-// 不需要 go_router，直接用 Navigator
+import 'package:go_router/go_router.dart';
 import '../../../services/auth_service.dart';
 import '../../../core/network/api_exception.dart';
-import 'login_screen.dart'; // 👈 导入 LoginScreen
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -31,7 +29,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await _authService.register(
+      await _authService.register(
         username: _usernameController.text.trim(),
         password: _passwordController.text,
         email: _emailController.text.trim(),
@@ -45,11 +43,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         );
 
-        // 👇 使用 Navigator.pushReplacement 跳转到登录页
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
+        final username = _usernameController.text.trim();
+        final password = _passwordController.text;
+
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        if (mounted) {
+          final router = GoRouter.of(context);
+          router.goNamed(
+            'login',
+            extra: {'username': username, 'password': password},
+          );
+        }
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -68,13 +73,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            // 👇 返回登录页
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const LoginScreen()),
-            );
-          },
+          onPressed: () => context.go('/login'),
         ),
         title: const Text('注册'),
       ),
@@ -101,7 +100,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 48),
-
                   TextFormField(
                     controller: _usernameController,
                     decoration: const InputDecoration(
@@ -124,7 +122,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -148,7 +145,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -184,7 +180,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-
                   TextFormField(
                     controller: _confirmPasswordController,
                     obscureText: _obscureConfirmPassword,
@@ -217,7 +212,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 32),
-
                   SizedBox(
                     height: 50,
                     child: ElevatedButton(
@@ -241,21 +235,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text('已有账号？'),
                       TextButton(
-                        onPressed: () {
-                          // 👇 跳转到登录页
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const LoginScreen(),
-                            ),
-                          );
-                        },
+                        onPressed: () => context.go('/login'),
                         child: const Text(
                           '立即登录',
                           style: TextStyle(color: Color(0xFF4F7CFF)),
