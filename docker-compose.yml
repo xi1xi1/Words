@@ -1,0 +1,71 @@
+# beileme 一键部署：docker compose up -d
+# 复制 .env.example 为 .env 并填写密码等敏感项后再启动
+#
+# 显式项目名：避免项目目录为中文等非 ASCII 时 Compose 推导出的 name 为空而报错
+
+name: beileme
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: beileme-mysql
+    restart: unless-stopped
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-beileme}
+      TZ: Asia/Shanghai
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # 仅「首次」创建数据卷时执行；若改表结构需删卷重建：docker compose down -v
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_general_ci"]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: beileme-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: beileme-backend:local
+    container_name: beileme-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-beileme}?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&characterEncoding=utf-8
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-root}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
+      SPRING_MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health
+      LOGGING_LEVEL_COM_ZYCHEN_BACKEND: INFO
+      JWT_SECRET: ${JWT_SECRET:?请在 .env 中设置 JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  mysql-data:
+  redis-data:
