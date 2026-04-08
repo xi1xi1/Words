@@ -105,6 +105,15 @@ public class WordServiceImpl implements WordService {
         // 3.1 聚合写入当日 study_record（uk_user_date）
         upsertDailyStudyRecord(userId, isReviewWord, Boolean.TRUE.equals(request.getIsCorrect()));
 
+        // 3.2 若刚刚“掌握完成”且今日待学队列已耗尽，则自动补充下一批新词
+        // 今日待学队列耗尽条件：user_word 中 status=0、today_mastered=0、next_review <= NOW() 的记录为空
+        if (Integer.valueOf(1).equals(userWord.getTodayMastered())) {
+            List<UserWord> remainingTodayLearningWords = userWordMapper.getTodayLearningWords(userId);
+            if (remainingTodayLearningWords == null || remainingTodayLearningWords.isEmpty()) {
+                replenishDailyNewWords(userId);
+            }
+        }
+
         // 4. 获取今日学习统计
         int completedCount = getTodayCompletedCount(userId);
         int totalCount = getTodayTotalCount(userId);
@@ -117,6 +126,58 @@ public class WordServiceImpl implements WordService {
                 userWord.getTodayMastered(), completedCount, totalCount);
 
         return new LearnResponse(nextWord, completedCount, totalCount);
+    }
+
+    @Override
+    @Transactional
+    public void replenishDailyNewWords(Long userId) {
+        // 保护：如果队列并未耗尽，不重复补充
+        List<UserWord> todayLearningWords = userWordMapper.getTodayLearningWords(userId);
+        if (todayLearningWords != null && !todayLearningWords.isEmpty()) {
+            return;
+        }
+
+        // 获取已学过/已被分配过的单词（user_word 中出现过的都算已分配）
+        List<Long> learnedWordIds = userWordMapper.getLearnedWordIds(userId);
+
+        // 从词库中选取未出现于 user_word 的新词，组成下一批
+        List<com.zychen.backend.entity.Word> candidates;
+        if (learnedWordIds == null || learnedWordIds.isEmpty()) {
+            candidates = wordMapper.getLatestWords(NEW_WORDS_PER_DAY);
+        } else {
+            candidates = wordMapper.getLatestWordsExclude(learnedWordIds, NEW_WORDS_PER_DAY);
+        }
+
+        if (candidates == null || candidates.isEmpty()) {
+            log.info("今日待学队列耗尽但词库已无新词可补充: userId={}", userId);
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        int inserted = 0;
+        for (com.zychen.backend.entity.Word w : candidates) {
+            if (w == null) {
+                continue;
+            }
+            UserWord row = new UserWord();
+            row.setUserId(userId);
+            row.setWordId(w.getId());
+            row.setStatus(0);             // 学习中
+            row.setStudyStage(1);        // 从阶段1开始
+            row.setTodayMastered(0);     // 今日未掌握
+            row.setReviewCount(0);       // 新词：复习次数从0开始
+            row.setNextReview(now);      // 立刻进入今日待学队列
+            row.setMemoryScore(BigDecimal.ZERO);
+            row.setLastStudyTime(null);
+
+            int rows = userWordMapper.insert(row);
+            if (rows > 0) {
+                inserted++;
+            }
+        }
+
+        log.info("补充今日新词队列成功: userId={}, 本批请求={}, 实际插入={}",
+                userId, NEW_WORDS_PER_DAY, inserted);
     }
 
     @Override
