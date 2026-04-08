@@ -42,9 +42,13 @@ class ApiClient {
     Map<String, dynamic>? queryParams,
     bool needAuth = true,
   }) async {
+    final normalizedQueryParams = queryParams?.map(
+      (key, value) => MapEntry(key, value?.toString() ?? ''),
+    );
+
     final url = Uri.parse(
       '$baseUrl$path',
-    ).replace(queryParameters: queryParams);
+    ).replace(queryParameters: normalizedQueryParams);
     final headers = await _getHeaders(needAuth: needAuth);
 
     // 添加日志：打印完整请求信息

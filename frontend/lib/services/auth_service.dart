@@ -23,10 +23,6 @@ class AuthService {
       data['userInfo'] as Map<String, dynamic>,
     );
 
-    // 保存 Token 到本地
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(ApiConstants.tokenKey, token);
-
     return (token: token, userInfo: userInfo);
   }
 
@@ -47,10 +43,6 @@ class AuthService {
       data['userInfo'] as Map<String, dynamic>,
     );
 
-    // 保存 Token 到本地
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(ApiConstants.tokenKey, token);
-
     return (token: token, userInfo: userInfo);
   }
 
@@ -58,7 +50,6 @@ class AuthService {
     try {
       await _apiClient.post(ApiConstants.authLogout);
     } finally {
-      // 无论接口是否成功，都清除本地Token
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(ApiConstants.tokenKey);
       await prefs.remove(ApiConstants.userInfoKey);

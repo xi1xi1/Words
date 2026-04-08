@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'app.dart';
 import 'core/providers/settings_provider.dart';
 import 'core/providers/user_provider.dart';
+import 'core/providers/wordbook_provider.dart';
 import 'core/theme/app_theme.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -19,16 +21,19 @@ class MyApp extends StatelessWidget {
           create: (_) => SettingsProvider(),
         ),
         ChangeNotifierProvider<UserProvider>(create: (_) => UserProvider()),
+        ChangeNotifierProvider<WordbookProvider>(
+          create: (_) => WordbookProvider()..load(),
+        ),
       ],
-      child: Consumer<SettingsProvider>(
-        builder: (context, settingsProvider, child) {
+      child: Consumer2<SettingsProvider, UserProvider>(
+        builder: (context, settingsProvider, userProvider, child) {
           return MaterialApp.router(
             title: '背了么',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: settingsProvider.themeMode,
-            routerConfig: AppRouter.router,
+            routerConfig: AppRouter.createRouter(userProvider),
           );
         },
       ),

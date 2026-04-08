@@ -1,6 +1,4 @@
 // frontend/lib/features/profile/screens/profile_screen.dart
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../services/study_service.dart';
@@ -22,6 +20,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   StudyStats? _stats;
   int _wordbookCount = 0;
   List<StudyTrend>? _trend;
+  List<LearningCalendar> _calendars = [];
 
   static const _bg = Color(0xFFF7F8FA);
   static const _blue = Color(0xFF4A74F5);
@@ -39,15 +38,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final stats = await _studyService.getStudyStats();
       final wordbook = await _wordbookService.getWordbookList();
       List<StudyTrend>? trend;
+      List<LearningCalendar> calendars = [];
       try {
         trend = await _studyService.getStudyTrend(days: 7);
       } catch (_) {
         trend = null;
       }
+      try {
+        final now = DateTime.now();
+        calendars = [];
+        for (int i = 0; i < 3; i++) {
+          final month = now.month - i;
+          final year = month > 0 ? now.year : now.year - 1;
+          final actualMonth = month > 0 ? month : 12 + month;
+          calendars.add(
+            await _studyService.getStudyCalendar(
+              year: year,
+              month: actualMonth,
+            ),
+          );
+        }
+      } catch (_) {
+        calendars = [];
+      }
       setState(() {
         _stats = stats;
         _wordbookCount = wordbook.length;
         _trend = trend;
+        _calendars = calendars;
       });
     } on ApiException catch (e) {
       if (mounted) {
@@ -68,7 +86,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         onRefresh: _loadData,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(16, MediaQuery.paddingOf(context).top + 12, 16, 24),
+          padding: EdgeInsets.fromLTRB(
+            16,
+            MediaQuery.paddingOf(context).top + 12,
+            16,
+            24,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -77,12 +100,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const Expanded(
                     child: Text(
                       '我的',
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: _navy),
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: _navy,
+                      ),
                     ),
                   ),
                   IconButton(
                     onPressed: () => context.push('/settings'),
-                    icon: const Icon(Icons.settings_outlined, color: Color(0xFF8E9297)),
+                    icon: const Icon(
+                      Icons.settings_outlined,
+                      color: Color(0xFF8E9297),
+                    ),
                   ),
                 ],
               ),
@@ -91,21 +121,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 24),
               const Text(
                 '学习工具',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: _navy),
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: _navy,
+                ),
               ),
               const SizedBox(height: 12),
               _buildToolsGrid(),
               const SizedBox(height: 24),
               const Text(
                 '学习数据',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: _navy),
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: _navy,
+                ),
               ),
               const SizedBox(height: 12),
               _buildDataStats(),
               const SizedBox(height: 24),
               const Text(
                 '近7天学习趋势',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: _navy),
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: _navy,
+                ),
               ),
               const SizedBox(height: 12),
               _buildTrendChart(),
@@ -134,7 +176,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildTrendChart() {
     final counts = _trendCounts;
-    final maxC = counts.reduce(max).clamp(1, 9999);
+    final maxC = counts.isEmpty
+        ? 1
+        : counts.reduce((a, b) => a > b ? a : b).clamp(1, 9999);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
@@ -200,20 +244,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   /// 近 4 周学习热力（与设计稿一致）；无专用接口时用本地演示强度
   Widget _buildLearningCalendarCard() {
-    final rnd = Random(42);
-    final levels = List<int>.generate(28, (_) => rnd.nextInt(4));
+    final now = DateTime.now();
+    final studyDatesSet = <String>{};
+    for (final cal in _calendars) {
+      studyDatesSet.addAll(cal.studyDates);
+    }
+
+    final List<DateTime> recent28Days = [];
+    for (int i = 27; i >= 0; i--) {
+      recent28Days.add(now.subtract(Duration(days: i)));
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(Icons.local_fire_department, color: Colors.orange.shade400, size: 22),
+            Icon(
+              Icons.local_fire_department,
+              color: Colors.orange.shade400,
+              size: 22,
+            ),
             const SizedBox(width: 6),
             const Expanded(
               child: Text(
                 '学习日历',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: _navy),
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: _navy,
+                ),
               ),
             ),
             Text(
@@ -241,10 +301,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 crossAxisSpacing: 5,
                 childAspectRatio: 1,
                 children: List.generate(28, (i) {
+                  final date = recent28Days[i];
+                  final dateStr =
+                      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+                  final hasStudy = studyDatesSet.contains(dateStr);
                   return Container(
                     decoration: BoxDecoration(
-                      color: _calendarIntensityColor(levels[i]),
+                      color: hasStudy ? _blue : const Color(0xFFEBEDF0),
                       borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${date.day}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: hasStudy ? Colors.white : Colors.grey.shade500,
+                        ),
+                      ),
                     ),
                   );
                 }),
@@ -253,21 +326,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Text('少', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                  Text(
+                    '无',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  ),
                   const SizedBox(width: 6),
-                  ...List.generate(4, (l) => Padding(
-                        padding: const EdgeInsets.only(left: 3),
-                        child: Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: _calendarIntensityColor(l),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      )),
+                  Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEBEDF0),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: _blue,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                   const SizedBox(width: 6),
-                  Text('多', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                  Text(
+                    '有学习',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  ),
                 ],
               ),
             ],
@@ -275,19 +360,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ],
     );
-  }
-
-  Color _calendarIntensityColor(int level) {
-    switch (level.clamp(0, 3)) {
-      case 0:
-        return const Color(0xFFEBEDF0);
-      case 1:
-        return const Color(0xFFC7D8FF);
-      case 2:
-        return const Color(0xFF7BA3FF);
-      default:
-        return const Color(0xFF4A74F5);
-    }
   }
 
   Widget _buildCurrentWordbookCard() {
@@ -323,7 +395,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               const Text(
                 '当前词库',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF333333),
+                ),
               ),
               const Spacer(),
               IconButton(
@@ -339,7 +415,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text('换本词书', style: TextStyle(color: _blue, fontWeight: FontWeight.w600)),
+                child: const Text(
+                  '换本词书',
+                  style: TextStyle(color: _blue, fontWeight: FontWeight.w600),
+                ),
               ),
             ],
           ),
@@ -354,7 +433,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   color: const Color(0xFFE8EEFD),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Icons.menu_book_rounded, color: _blue, size: 26),
+                child: const Icon(
+                  Icons.menu_book_rounded,
+                  color: _blue,
+                  size: 26,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -363,12 +446,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     const Text(
                       '四级核心词汇',
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: _navy),
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: _navy,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '$totalLearned / $totalGoal 词',
-                      style: const TextStyle(fontSize: 14, color: Color(0xFF8E9297)),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF8E9297),
+                      ),
                     ),
                   ],
                 ),
@@ -378,9 +468,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 18),
           Row(
             children: [
-              const Text('学习进度', style: TextStyle(fontSize: 14, color: Color(0xFF666666))),
+              const Text(
+                '学习进度',
+                style: TextStyle(fontSize: 14, color: Color(0xFF666666)),
+              ),
               const Spacer(),
-              Text('$pct%', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _blue)),
+              Text(
+                '$pct%',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: _blue,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -399,12 +499,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   List<BoxShadow> get _cardShadow => [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
-          blurRadius: 12,
-          offset: const Offset(0, 4),
-        ),
-      ];
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.05),
+      blurRadius: 12,
+      offset: const Offset(0, 4),
+    ),
+  ];
 
   Widget _buildToolsGrid() {
     return Row(
@@ -465,20 +565,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Container(
                     width: 36,
                     height: 36,
-                    decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
+                    decoration: BoxDecoration(
+                      color: iconBg,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                     child: Icon(icon, color: iconColor, size: 20),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     '$count',
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _navy),
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: _navy,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 10),
-              Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: _navy)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: _navy,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text(subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFF8E9297))),
+              Text(
+                subtitle,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF8E9297)),
+              ),
             ],
           ),
         ),
@@ -491,7 +608,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return Container(
         height: 140,
         alignment: Alignment.center,
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18), boxShadow: _cardShadow),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: _cardShadow,
+        ),
         child: const CircularProgressIndicator(),
       );
     }
@@ -512,17 +633,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Row(
             children: [
-              Expanded(child: _dataCell(Icons.menu_book_rounded, '$todayStudy ↑', '今日学习', const Color(0xFFE8EEFD), _blue)),
+              Expanded(
+                child: _dataCell(
+                  Icons.menu_book_rounded,
+                  '$todayStudy ↑',
+                  '今日学习',
+                  const Color(0xFFE8EEFD),
+                  _blue,
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _dataCell(Icons.autorenew_rounded, '$todayReview ↑', '今日复习', const Color(0xFFE8F8EC), const Color(0xFF66CC77))),
+              Expanded(
+                child: _dataCell(
+                  Icons.autorenew_rounded,
+                  '$todayReview ↑',
+                  '今日复习',
+                  const Color(0xFFE8F8EC),
+                  const Color(0xFF66CC77),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _dataCell(Icons.track_changes_rounded, '$totalLearned 词', '累计学习', const Color(0xFFFFF2E6), const Color(0xFFFF9F43))),
+              Expanded(
+                child: _dataCell(
+                  Icons.track_changes_rounded,
+                  '$totalLearned 词',
+                  '累计学习',
+                  const Color(0xFFFFF2E6),
+                  const Color(0xFFFF9F43),
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _dataCell(Icons.schedule_rounded, '${todayTime ~/ 60} 分钟', '今日时长', const Color(0xFFE8EEFD), _blue)),
+              Expanded(
+                child: _dataCell(
+                  Icons.schedule_rounded,
+                  '${todayTime ~/ 60} 分钟',
+                  '今日时长',
+                  const Color(0xFFE8EEFD),
+                  _blue,
+                ),
+              ),
             ],
           ),
         ],
@@ -530,7 +683,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _dataCell(IconData icon, String value, String label, Color bg, Color iconColor) {
+  Widget _dataCell(
+    IconData icon,
+    String value,
+    String label,
+    Color bg,
+    Color iconColor,
+  ) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -543,7 +702,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Icon(icon, color: iconColor, size: 22),
           ),
           const SizedBox(width: 10),
@@ -553,12 +715,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 Text(
                   value,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _navy),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: _navy,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF8E9297))),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF8E9297),
+                  ),
+                ),
               ],
             ),
           ),
@@ -566,5 +738,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-
 }

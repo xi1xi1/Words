@@ -157,6 +157,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
       await _wordService.submitLearnResult(
         wordId: _currentWord.id,
         isCorrect: isCorrect,
+        stage: 3,
       );
     } catch (_) {
       // 静默处理错误
@@ -240,9 +241,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: _pageBg,
-        body: Center(child: CircularProgressIndicator()),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 

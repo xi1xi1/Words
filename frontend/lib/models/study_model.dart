@@ -1,41 +1,56 @@
+// frontend/lib/models/study_model.dart
 class StudyStats {
-  final int totalLearned;
   final int todayStudy;
   final int todayReview;
+  final int totalWords;
+  final int masteredWords;
+  final int wordbookWords;
   final int dueReviewCount;
-  final int streakDays;
-  final int totalTime;
+  final int totalScore;
+  final int level;
 
   StudyStats({
-    required this.totalLearned,
     required this.todayStudy,
     required this.todayReview,
+    required this.totalWords,
+    required this.masteredWords,
+    required this.wordbookWords,
     required this.dueReviewCount,
-    required this.streakDays,
-    required this.totalTime,
+    required this.totalScore,
+    required this.level,
   });
 
   factory StudyStats.fromJson(Map<String, dynamic> json) {
-    final data = json['data'] as Map<String, dynamic>;
+    final data = json['data'] as Map<String, dynamic>? ?? {};
     return StudyStats(
-      totalLearned: data['totalLearned'] as int,
-      todayStudy: data['todayStudy'] as int,
-      todayReview: data['todayReview'] as int,
-      dueReviewCount: data['dueReviewCount'] as int,
-      streakDays: data['streakDays'] as int,
-      totalTime: data['totalTime'] as int,
+      todayStudy: (data['todayStudy'] as num?)?.toInt() ?? 0,
+      todayReview: (data['todayReview'] as num?)?.toInt() ?? 0,
+      totalWords: (data['totalWords'] as num?)?.toInt() ??
+          (data['totalLearned'] as num?)?.toInt() ??
+          0,
+      masteredWords: (data['masteredWords'] as num?)?.toInt() ?? 0,
+      wordbookWords: (data['wordbookWords'] as num?)?.toInt() ?? 0,
+      dueReviewCount: (data['dueReviewCount'] as num?)?.toInt() ?? 0,
+      totalScore: (data['totalScore'] as num?)?.toInt() ?? 0,
+      level: (data['level'] as num?)?.toInt() ?? 1,
     );
   }
+
+  int get totalLearned => totalWords;
+  int get streakDays => level;
+  int get totalTime => todayStudy;
 
   Map<String, dynamic> toJson() {
     return {
       'data': {
-        'totalLearned': totalLearned,
         'todayStudy': todayStudy,
         'todayReview': todayReview,
+        'totalWords': totalWords,
+        'masteredWords': masteredWords,
+        'wordbookWords': wordbookWords,
         'dueReviewCount': dueReviewCount,
-        'streakDays': streakDays,
-        'totalTime': totalTime,
+        'totalScore': totalScore,
+        'level': level,
       },
     };
   }
@@ -43,28 +58,38 @@ class StudyStats {
 
 class StudyTrend {
   final DateTime date;
-  final int learnedCount;
-  final int timeSpent;
+  final int studyCount;
+  final int reviewCount;
+  final double correctRate;
 
   StudyTrend({
     required this.date,
-    required this.learnedCount,
-    required this.timeSpent,
+    required this.studyCount,
+    required this.reviewCount,
+    required this.correctRate,
   });
 
   factory StudyTrend.fromJson(Map<String, dynamic> json) {
     return StudyTrend(
-      date: DateTime.parse(json['date'] as String),
-      learnedCount: json['learnedCount'] as int,
-      timeSpent: json['timeSpent'] as int,
+      date: DateTime.tryParse(json['date']?.toString() ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+      studyCount: (json['studyCount'] as num?)?.toInt() ??
+          (json['learnedCount'] as num?)?.toInt() ??
+          0,
+      reviewCount: (json['reviewCount'] as num?)?.toInt() ?? 0,
+      correctRate: (json['correctRate'] as num?)?.toDouble() ?? 0,
     );
   }
+
+  int get learnedCount => studyCount;
+  int get timeSpent => reviewCount;
 
   Map<String, dynamic> toJson() {
     return {
       'date': date.toIso8601String(),
-      'learnedCount': learnedCount,
-      'timeSpent': timeSpent,
+      'studyCount': studyCount,
+      'reviewCount': reviewCount,
+      'correctRate': correctRate,
     };
   }
 }
@@ -72,23 +97,23 @@ class StudyTrend {
 class LearningCalendar {
   final int year;
   final int month;
-  final List<CalendarDay> days;
+  final List<String> studyDates;
 
   LearningCalendar({
     required this.year,
     required this.month,
-    required this.days,
+    required this.studyDates,
   });
 
   factory LearningCalendar.fromJson(Map<String, dynamic> json) {
-    final data = json['data'] as Map<String, dynamic>;
-    final list = data['days'] as List<dynamic>;
+    final data = json['data'] as Map<String, dynamic>? ?? {};
     return LearningCalendar(
-      year: data['year'] as int,
-      month: data['month'] as int,
-      days: list
-          .map((e) => CalendarDay.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      year: (data['year'] as num?)?.toInt() ?? 0,
+      month: (data['month'] as num?)?.toInt() ?? 0,
+      studyDates: (data['studyDates'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
     );
   }
 
@@ -97,32 +122,8 @@ class LearningCalendar {
       'data': {
         'year': year,
         'month': month,
-        'days': days.map((e) => e.toJson()).toList(),
+        'studyDates': studyDates,
       },
     };
-  }
-}
-
-class CalendarDay {
-  final int day;
-  final bool hasLearned;
-  final int learnedCount;
-
-  CalendarDay({
-    required this.day,
-    required this.hasLearned,
-    required this.learnedCount,
-  });
-
-  factory CalendarDay.fromJson(Map<String, dynamic> json) {
-    return CalendarDay(
-      day: json['day'] as int,
-      hasLearned: json['hasLearned'] as bool,
-      learnedCount: json['learnedCount'] as int,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {'day': day, 'hasLearned': hasLearned, 'learnedCount': learnedCount};
   }
 }
