@@ -8,4 +8,5 @@ public class DailyWordsResponse {
 
     private List<Word> newWords;
     private List<Word> reviewWords;
+    private Integer total;
 }

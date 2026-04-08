@@ -39,40 +39,43 @@ public class WordServiceImpl implements WordService {
 
     private static final int NEW_WORDS_PER_DAY = 10;
     private static final int REVIEW_WORDS_PER_DAY = 20;
-    private static final int DAILY_TOTAL_LIMIT = 30;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public DailyWordsResponse getDailyWords(Long userId) {
         log.info("获取用户今日单词: userId={}", userId);
 
-        // 1. 获取需要复习的单词（学习中、今日未掌握、到复习时间）
-        List<UserWord> reviewUserWords = userWordMapper.getReviewWords(userId, REVIEW_WORDS_PER_DAY);
-        List<Word> reviewWords = reviewUserWords.stream()
-                .map(uw -> convertToWord(uw.getWordId()))
-                .collect(Collectors.toList());
+        // 1) 当前批次队列（最多 10 个）
+        List<UserWord> todayQueue = userWordMapper.getCurrentBatchLearningWords(userId, NEW_WORDS_PER_DAY);
 
-        // 2. 获取已学过的单词ID列表
-        List<Long> learnedWordIds = userWordMapper.getLearnedWordIds(userId);
-
-        // 3. 获取新词（排除已学过的）
-        List<com.zychen.backend.entity.Word> newWordsEntities;
-        if (learnedWordIds.isEmpty()) {
-            newWordsEntities = wordMapper.getLatestWords(NEW_WORDS_PER_DAY);
-        } else {
-            newWordsEntities = wordMapper.getLatestWordsExclude(learnedWordIds, NEW_WORDS_PER_DAY);
+        // 2) 队列为空时，自动补一批新词（10个），满足“学完一批再补一批”
+        if (todayQueue == null || todayQueue.isEmpty()) {
+            replenishDailyNewWords(userId);
+            todayQueue = userWordMapper.getCurrentBatchLearningWords(userId, NEW_WORDS_PER_DAY);
         }
 
-        List<Word> newWords = newWordsEntities.stream()
-                .map(this::convertToWordDto)
+        if (todayQueue == null) {
+            todayQueue = new ArrayList<>();
+        }
+
+        // 3) 按「是否经历过学习」拆分为新词/复习词：
+        // review_count = 0 视为新词批次；review_count > 0 视为复习
+        List<Word> newWords = todayQueue.stream()
+                .filter(uw -> uw.getReviewCount() == null || uw.getReviewCount() == 0)
+                .map(uw -> convertToWord(uw.getWordId()))
+                .collect(Collectors.toList());
+        List<Word> reviewWords = todayQueue.stream()
+                .filter(uw -> uw.getReviewCount() != null && uw.getReviewCount() > 0)
+                .map(uw -> convertToWord(uw.getWordId()))
                 .collect(Collectors.toList());
 
         DailyWordsResponse response = new DailyWordsResponse();
         response.setNewWords(newWords);
         response.setReviewWords(reviewWords);
+        response.setTotal(todayQueue.size());
 
-        log.info("获取今日单词成功: userId={}, 新词数={}, 复习词数={}",
-                userId, newWords.size(), reviewWords.size());
+        log.info("获取今日单词成功: userId={}, 队列总数={}, 新词数={}, 复习词数={}",
+                userId, todayQueue.size(), newWords.size(), reviewWords.size());
         return response;
     }
 
@@ -105,11 +108,10 @@ public class WordServiceImpl implements WordService {
         // 3.1 聚合写入当日 study_record（uk_user_date）
         upsertDailyStudyRecord(userId, isReviewWord, Boolean.TRUE.equals(request.getIsCorrect()));
 
-        // 3.2 若刚刚“掌握完成”且今日待学队列已耗尽，则自动补充下一批新词
-        // 今日待学队列耗尽条件：user_word 中 status=0、today_mastered=0、next_review <= NOW() 的记录为空
+        // 3.2 若刚刚“掌握完成”且当前批次已清空，则按需补充下一批
         if (Integer.valueOf(1).equals(userWord.getTodayMastered())) {
-            List<UserWord> remainingTodayLearningWords = userWordMapper.getTodayLearningWords(userId);
-            if (remainingTodayLearningWords == null || remainingTodayLearningWords.isEmpty()) {
+            List<UserWord> currentBatch = userWordMapper.getCurrentBatchLearningWords(userId, NEW_WORDS_PER_DAY);
+            if (currentBatch == null || currentBatch.isEmpty()) {
                 replenishDailyNewWords(userId);
             }
         }
@@ -131,9 +133,15 @@ public class WordServiceImpl implements WordService {
     @Override
     @Transactional
     public void replenishDailyNewWords(Long userId) {
-        // 保护：如果队列并未耗尽，不重复补充
-        List<UserWord> todayLearningWords = userWordMapper.getTodayLearningWords(userId);
-        if (todayLearningWords != null && !todayLearningWords.isEmpty()) {
+        // 保护：当前批次仍未学完，不补充
+        List<UserWord> currentBatch = userWordMapper.getCurrentBatchLearningWords(userId, NEW_WORDS_PER_DAY);
+        if (currentBatch != null && !currentBatch.isEmpty()) {
+            return;
+        }
+
+        // 仍有历史待学词（>10 场景下的下一批），不补新词，交给 getCurrentBatchLearningWords 自然切换下一组
+        int allRemaining = userWordMapper.countAllLearningWords(userId);
+        if (allRemaining > 0) {
             return;
         }
 
@@ -207,7 +215,7 @@ public class WordServiceImpl implements WordService {
     // ==================== 私有方法 ====================
 
     /**
-     * 与 getReviewWords 一致：学习中、今日未掌握、且已到复习时间 → 视为「复习词」提交；否则为「新学词」路径。
+     * 当前队列中，review_count > 0 视为复习词；否则视为新学词。
      */
     private boolean isReviewQueueUserWord(UserWord uw) {
         if (uw == null) {
@@ -219,10 +227,7 @@ public class WordServiceImpl implements WordService {
         if (!Integer.valueOf(0).equals(uw.getTodayMastered())) {
             return false;
         }
-        if (uw.getNextReview() == null) {
-            return false;
-        }
-        return !uw.getNextReview().isAfter(LocalDateTime.now());
+        return uw.getReviewCount() != null && uw.getReviewCount() > 0;
     }
 
     /**
@@ -359,7 +364,7 @@ public class WordServiceImpl implements WordService {
      */
     private NextWordInfo getNextWordFromTodayList(Long userId) {
         // 获取今日所有需要学习的单词（学习中、今日未掌握、到复习时间）
-        List<UserWord> todayLearningWords = userWordMapper.getTodayLearningWords(userId);
+        List<UserWord> todayLearningWords = userWordMapper.getCurrentBatchLearningWords(userId, NEW_WORDS_PER_DAY);
 
         log.debug("今日学习列表大小: {}", todayLearningWords.size());
 
@@ -420,10 +425,10 @@ public class WordServiceImpl implements WordService {
      * = min(复习词数 + 新词数, 每日上限)
      */
     private int getTodayTotalCount(Long userId) {
-        int reviewCount = userWordMapper.countTodayReviewWords(userId);
-        int newCount = wordMapper.countNewWords(userId);
-        int total = Math.min(reviewCount + newCount, DAILY_TOTAL_LIMIT);
-        log.debug("今日统计: 复习词={}, 新词={}, 总计={}", reviewCount, newCount, total);
+        int completed = userWordMapper.countTodayCompleted(userId);
+        int remaining = userWordMapper.getCurrentBatchLearningWords(userId, NEW_WORDS_PER_DAY).size();
+        int total = completed + remaining;
+        log.debug("今日统计: 已完成={}, 队列待学={}, 总计={}", completed, remaining, total);
         return total;
     }
 
