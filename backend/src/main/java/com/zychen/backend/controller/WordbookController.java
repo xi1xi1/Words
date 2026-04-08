@@ -1,175 +1,102 @@
 package com.zychen.backend.controller;
 
-import com.zychen.backend.dto.request.AddToWordbookRequest;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zychen.backend.common.BusinessException;
 import com.zychen.backend.dto.response.ApiResponse;
-import jakarta.validation.Valid;
+import com.zychen.backend.dto.response.WordbookPage;
+import com.zychen.backend.entity.Word;
+import com.zychen.backend.mapper.WordMapper;
+import com.zychen.backend.service.WordbookService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
 @RequestMapping("/api/wordbook")
 @CrossOrigin(origins = "*")
+@RequiredArgsConstructor
 public class WordbookController {
 
-    // Mock 生词本数据
-    private final List<Map<String, Object>> mockWordbook = new ArrayList<>();
-
-    public WordbookController() {
-        // 初始化 Mock 数据
-        Map<String, Object> item1 = new HashMap<>();
-        item1.put("id", 10001L);
-        item1.put("wordId", 1L);
-        item1.put("word", "abandon");
-        item1.put("meaning", List.of("v. 放弃", "n. 放任"));
-        item1.put("phonetic", "/əˈbændən/");
-        item1.put("addTime", "2026-03-18 10:30:00");
-        mockWordbook.add(item1);
-    }
+    private final WordbookService wordbookService;
+    private final WordMapper wordMapper;
+    private final ObjectMapper objectMapper;
 
     /**
      * 获取生词本列表
      * GET /api/wordbook/list
-     *
-     * 示例请求：
-     * GET /api/wordbook/list?page=1&size=20
-     *
-     * 示例返回：
-     * {
-     *   "code": 200,
-     *   "message": "success",
-     *   "data": {
-     *     "content": [...],
-     *     "total": 128,
-     *     "page": 1,
-     *     "size": 20
-     *   }
-     * }
      */
     @GetMapping("/list")
-    public ApiResponse<Map<String, Object>> getWordbookList(
+    public ApiResponse<WordbookPage> getWordbookList(
+            @RequestAttribute("userId") Long userId,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @RequestHeader(value = "Authorization", required = false) String auth) {
+            @RequestParam(defaultValue = "20") int size) {
         log.info("GET /api/wordbook/list - page: {}, size: {}", page, size);
-
-        // TODO: 从数据库查询生词本列表
-
-        // 模拟分页
-        List<Map<String, Object>> content = mockWordbook;
-        int total = mockWordbook.size();
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("content", content);
-        result.put("total", total);
-        result.put("page", page);
-        result.put("size", size);
-
-        return ApiResponse.success(result);
+        WordbookPage data = wordbookService.getWordbookList(userId, page, size);
+        return ApiResponse.success(data);
     }
 
     /**
      * 添加单词到生词本
-     * POST /api/wordbook/add
-     *
-     * 示例请求：
-     * {
-     *   "wordId": 1
-     * }
-     *
-     * 示例返回：
-     * {
-     *   "code": 200,
-     *   "message": "已加入生词本",
-     *   "data": null
-     * }
+     * POST /api/wordbook/add/{wordId}
      */
-    @PostMapping("/add")
+    @PostMapping("/add/{wordId}")
     public ApiResponse<Void> addToWordbook(
-            @Valid @RequestBody AddToWordbookRequest request,
-            @RequestHeader(value = "Authorization", required = false) String auth) {
-        log.info("POST /api/wordbook/add - wordId: {}", request.getWordId());
-
-        // TODO: 检查单词是否存在，是否已在生词本，加入生词本
-
+            @RequestAttribute("userId") Long userId,
+            @PathVariable Long wordId) {
+        log.info("POST /api/wordbook/add/{}", wordId);
+        wordbookService.addToWordbook(userId, wordId);
         return ApiResponse.success("已加入生词本", null);
     }
 
     /**
      * 从生词本移除
      * DELETE /api/wordbook/remove/{wordId}
-     *
-     * 示例请求：
-     * DELETE /api/wordbook/remove/1
-     *
-     * 示例返回：
-     * {
-     *   "code": 200,
-     *   "message": "已移除",
-     *   "data": null
-     * }
      */
     @DeleteMapping("/remove/{wordId}")
     public ApiResponse<Void> removeFromWordbook(
-            @PathVariable Long wordId,
-            @RequestHeader(value = "Authorization", required = false) String auth) {
+            @RequestAttribute("userId") Long userId,
+            @PathVariable Long wordId) {
         log.info("DELETE /api/wordbook/remove/{}", wordId);
-
-        // TODO: 从生词本移除该单词
-
+        wordbookService.removeFromWordbook(userId, wordId);
         return ApiResponse.success("已移除", null);
     }
 
     /**
-     * 获取AI生成内容（例句和对话）
+     * 获取 AI 相关内容：从词库 example 字段解析例句；对话占位（待对接 AI）
      * GET /api/wordbook/ai/{wordId}
-     *
-     * 示例返回：
-     * {
-     *   "code": 200,
-     *   "message": "success",
-     *   "data": {
-     *     "word": "abandon",
-     *     "examples": ["He abandoned his plan.", "They abandoned the city."],
-     *     "dialogues": [
-     *       {
-     *         "scene": "告别场景",
-     *         "conversation": ["A: Why did you leave?", "B: I had to abandon the project."]
-     *       }
-     *     ]
-     *   }
-     * }
      */
     @GetMapping("/ai/{wordId}")
     public ApiResponse<Map<String, Object>> getAIContent(
-            @PathVariable Long wordId,
-            @RequestHeader(value = "Authorization", required = false) String auth) {
-        log.info("GET /api/wordbook/ai/{}", wordId);
+            @RequestAttribute("userId") Long userId,
+            @PathVariable Long wordId) {
+        log.info("GET /api/wordbook/ai/{} userId={}", wordId, userId);
+        Word word = wordMapper.findById(wordId);
+        if (word == null) {
+            throw new BusinessException(404, "单词不存在");
+        }
+        List<String> examples = parseJsonArray(word.getExample());
+        Map<String, Object> data = new HashMap<>();
+        data.put("word", word.getWord());
+        data.put("examples", examples);
+        data.put("dialogues", List.of());
+        return ApiResponse.success(data);
+    }
 
-        // TODO: 调用AI接口生成例句和对话
-
-        // Mock AI 返回数据
-        Map<String, Object> response = new HashMap<>();
-        response.put("word", "abandon");
-        response.put("examples", List.of(
-                "He abandoned his plan.",
-                "They abandoned the city.",
-                "She abandoned her dream of becoming a singer."
-        ));
-
-        List<Map<String, Object>> dialogues = new ArrayList<>();
-        Map<String, Object> dialogue1 = new HashMap<>();
-        dialogue1.put("scene", "告别场景");
-        dialogue1.put("conversation", List.of(
-                "A: Why did you leave the project?",
-                "B: I had to abandon it due to time constraints."
-        ));
-        dialogues.add(dialogue1);
-
-        response.put("dialogues", dialogues);
-
-        return ApiResponse.success(response);
+    private List<String> parseJsonArray(String json) {
+        if (json == null || json.isBlank()) {
+            return new ArrayList<>();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {});
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
     }
 }

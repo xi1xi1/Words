@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zychen.backend.mapper.BattleRecordMapper">
+
+    <sql id="Base_Column_List">
+        id, user_id, level_type, score, correct_count, total_count, duration, details, create_time
+    </sql>
+
+    <resultMap id="LevelRankingRowMap" type="com.zychen.backend.mapper.LevelRankingRow">
+        <result property="rank" column="rank_num"/>
+        <result property="userId" column="user_id"/>
+        <result property="username" column="username"/>
+        <result property="avatar" column="avatar"/>
+        <result property="bestScore" column="best_score"/>
+    </resultMap>
+
+    <select id="selectById" resultType="com.zychen.backend.entity.BattleRecord">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM battle_record
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO battle_record (
+            user_id, level_type, score, correct_count, total_count, duration, details
+        ) VALUES (
+            #{userId}, #{levelType}, #{score}, #{correctCount}, #{totalCount}, #{duration}, #{details}
+        )
+    </insert>
+
+    <update id="updateById">
+        UPDATE battle_record
+        SET user_id = #{userId},
+            level_type = #{levelType},
+            score = #{score},
+            correct_count = #{correctCount},
+            total_count = #{totalCount},
+            duration = #{duration},
+            details = #{details}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM battle_record WHERE id = #{id}
+    </delete>
+
+    <select id="listByUserForPage" resultType="com.zychen.backend.entity.BattleRecord">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM battle_record
+        WHERE user_id = #{userId}
+        <if test="levelType != null">
+            AND level_type = #{levelType}
+        </if>
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countByUser" resultType="int">
+        SELECT COUNT(*)
+        FROM battle_record
+        WHERE user_id = #{userId}
+        <if test="levelType != null">
+            AND level_type = #{levelType}
+        </if>
+    </select>
+
+    <select id="selectBestScore" resultType="java.lang.Integer">
+        SELECT MAX(score)
+        FROM battle_record
+        WHERE user_id = #{userId}
+          AND level_type = #{levelType}
+    </select>
+
+    <!-- 每用户取 MAX(score)，再按最高分排名；并列同名次 -->
+    <select id="listLevelRanking" resultMap="LevelRankingRowMap">
+        SELECT
+            wr.rank_num AS rank_num,
+            u.id AS user_id,
+            u.username AS username,
+            u.avatar AS avatar,
+            wr.best_score AS best_score
+        FROM (
+            SELECT
+                agg.user_id AS user_id,
+                agg.best_score AS best_score,
+                RANK() OVER (ORDER BY agg.best_score DESC) AS rank_num
+            FROM (
+                SELECT user_id, MAX(score) AS best_score
+                FROM battle_record
+                WHERE level_type = #{levelType}
+                GROUP BY user_id
+            ) agg
+        ) wr
+        INNER JOIN user u ON u.id = wr.user_id
+        ORDER BY wr.rank_num ASC, wr.user_id ASC
+        LIMIT #{limit}
+    </select>
+</mapper>

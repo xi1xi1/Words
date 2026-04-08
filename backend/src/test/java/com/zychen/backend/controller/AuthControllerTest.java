@@ -1,10 +1,13 @@
 package com.zychen.backend.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zychen.backend.config.JwtUtil;
 import com.zychen.backend.dto.request.LoginRequest;
 import com.zychen.backend.dto.request.RegisterRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.util.UUID;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
@@ -23,15 +26,18 @@ public class AuthControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
     /**
      * 测试1：注册成功
      */
     @Test
     void register_success() throws Exception {
         RegisterRequest request = new RegisterRequest();
-        request.setUsername("testuser");
+        request.setUsername("u_" + UUID.randomUUID().toString().substring(0, 8));
         request.setPassword("123456");
-        request.setEmail("test@example.com");
+        request.setEmail("test-" + UUID.randomUUID() + "@example.com");
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -40,7 +46,7 @@ public class AuthControllerTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.message").value("注册成功"))
                 .andExpect(jsonPath("$.data.token").exists())
-                .andExpect(jsonPath("$.data.userInfo.username").value("testuser"));
+                .andExpect(jsonPath("$.data.userInfo.username").value(request.getUsername()));
     }
 
     /**
@@ -168,23 +174,10 @@ public class AuthControllerTest {
      */
     @Test
     void logout_success() throws Exception {
-        // 先注册一个用户获取token
-        RegisterRequest registerRequest = new RegisterRequest();
-        registerRequest.setUsername("logoutuser");
-        registerRequest.setPassword("123456");
-        registerRequest.setEmail("logout@example.com");
+        String token = jwtUtil.generateToken(1L, "jwt_challenge_user");
 
-        String response = mockMvc.perform(post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(registerRequest)))
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        // 提取token（简化处理，实际应该用json解析）
-        // 这里直接测试登出接口，token用mock的也行
         mockMvc.perform(post("/api/auth/logout")
-                        .header("Authorization", "Bearer mock-token"))
+                        .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.message").value("退出成功"));

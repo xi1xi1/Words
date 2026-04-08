@@ -1,97 +1,54 @@
 package com.zychen.backend.controller;
 
+import com.zychen.backend.config.JwtUtil;
 import com.zychen.backend.dto.response.ApiResponse;
-import com.zychen.backend.dto.response.StudyStats;
-import com.zychen.backend.dto.response.StudyTrend;
+import com.zychen.backend.dto.response.CalendarDTO;
+import com.zychen.backend.dto.response.StudyStatsDTO;
+import com.zychen.backend.dto.response.StudyTrendDTO;
+import com.zychen.backend.service.StudyService;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
-import java.util.*;
+import java.util.List;
 
 @Slf4j
 @RestController
 @RequestMapping("/api/study")
 @CrossOrigin(origins = "*")
+@RequiredArgsConstructor
 public class StudyController {
 
-    /**
-     * 获取学习统计概览
-     * GET /api/study/stats
-     */
+    private final StudyService studyService;
+    private final JwtUtil jwtUtil;
+
     @GetMapping("/stats")
-    public ApiResponse<StudyStats> getStudyStats(
-            @RequestHeader(value = "Authorization", required = false) String auth) {
-        log.info("GET /api/study/stats");
-
-        // TODO: 从数据库查询学习统计数据
-
-        StudyStats stats = new StudyStats();
-        stats.setTodayStudy(35);
-        stats.setTodayReview(80);
-        stats.setTotalWords(1245);
-        stats.setMasteredWords(876);
-        stats.setWordbookWords(128);
-        stats.setDueReviewCount(45);
-        stats.setTotalScore(1250);
-        stats.setLevel(3);
-
-        return ApiResponse.success(stats);
+    public ApiResponse<StudyStatsDTO> getStudyStats(HttpServletRequest request) {
+        Long userId = jwtUtil.getUserIdFromRequest(request);
+        log.info("GET /api/study/stats userId={}", userId);
+        StudyStatsDTO data = studyService.getStats(userId);
+        return ApiResponse.success(data);
     }
 
-    /**
-     * 获取学习趋势（近N天）
-     * GET /api/study/trend?days=7
-     */
     @GetMapping("/trend")
-    public ApiResponse<List<StudyTrend>> getStudyTrend(
-            @RequestParam(defaultValue = "7") int days,
-            @RequestHeader(value = "Authorization", required = false) String auth) {
-        log.info("GET /api/study/trend - days: {}", days);
-
-        // TODO: 从数据库查询学习趋势数据
-
-        List<StudyTrend> trends = new ArrayList<>();
-        LocalDate today = LocalDate.now();
-
-        for (int i = days; i > 0; i--) {
-            StudyTrend trend = new StudyTrend();
-            trend.setDate(today.minusDays(i - 1));
-            trend.setStudyCount(25 + (int)(Math.random() * 20));
-            trend.setReviewCount(40 + (int)(Math.random() * 50));
-            trend.setCorrectRate(0.7 + Math.random() * 0.25);
-            trends.add(trend);
-        }
-
-        return ApiResponse.success(trends);
+    public ApiResponse<List<StudyTrendDTO>> getStudyTrend(
+            HttpServletRequest request,
+            @RequestParam(defaultValue = "7") int days) {
+        Long userId = jwtUtil.getUserIdFromRequest(request);
+        log.info("GET /api/study/trend userId={}, days={}", userId, days);
+        List<StudyTrendDTO> data = studyService.getTrend(userId, days);
+        return ApiResponse.success(data);
     }
 
-    /**
-     * 获取学习日历
-     * GET /api/study/calendar?year=2026&month=3
-     */
     @GetMapping("/calendar")
-    public ApiResponse<List<Map<String, Object>>> getStudyCalendar(
+    public ApiResponse<CalendarDTO> getStudyCalendar(
+            HttpServletRequest request,
             @RequestParam int year,
-            @RequestParam int month,
-            @RequestHeader(value = "Authorization", required = false) String auth) {
-        log.info("GET /api/study/calendar - year: {}, month: {}", year, month);
-
-        // TODO: 从数据库查询指定月份的学习数据
-
-        List<Map<String, Object>> calendarData = new ArrayList<>();
-
-        // Mock 数据
-        for (int day = 1; day <= 28; day++) {
-            if (Math.random() > 0.6) {
-                Map<String, Object> record = new HashMap<>();
-                record.put("date", String.format("%d-%02d-%02d", year, month, day));
-                record.put("count", 20 + (int)(Math.random() * 80));
-                record.put("level", (int)(Math.random() * 4));
-                calendarData.add(record);
-            }
-        }
-
-        return ApiResponse.success(calendarData);
+            @RequestParam int month) {
+        Long userId = jwtUtil.getUserIdFromRequest(request);
+        log.info("GET /api/study/calendar userId={}, year={}, month={}", userId, year, month);
+        CalendarDTO data = studyService.getCalendar(userId, year, month);
+        return ApiResponse.success(data);
     }
 }

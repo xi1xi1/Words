@@ -1,12 +1,15 @@
 package com.zychen.backend.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zychen.backend.config.JwtUtil;
 import com.zychen.backend.dto.request.LearnRequest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -14,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@Sql(scripts = "/sql/challenge-test-data.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS)
 public class WordControllerTest {
 
     @Autowired
@@ -22,17 +26,28 @@ public class WordControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    private String bearerToken;
+
+    @BeforeEach
+    void setUp() {
+        bearerToken = "Bearer " + jwtUtil.generateToken(1L, "jwt_challenge_user");
+    }
+
     /**
      * 测试1：获取今日单词成功
      */
     @Test
     void getDailyWords_success() throws Exception {
         mockMvc.perform(get("/api/words/daily")
-                        .header("Authorization", "Bearer mock-token"))
+                        .header("Authorization", bearerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.newWords").exists())
-                .andExpect(jsonPath("$.data.reviewWords").exists());
+                .andExpect(jsonPath("$.message").value("success"))
+                .andExpect(jsonPath("$.data.newWords").isArray())
+                .andExpect(jsonPath("$.data.reviewWords").isArray());
     }
 
     /**
@@ -43,15 +58,17 @@ public class WordControllerTest {
         LearnRequest request = new LearnRequest();
         request.setWordId(1L);
         request.setIsCorrect(true);
+        request.setStage(1);
 
         mockMvc.perform(post("/api/words/learn")
-                        .header("Authorization", "Bearer mock-token")
+                        .header("Authorization", bearerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.nextWord").exists())
-                .andExpect(jsonPath("$.data.progress").exists());
+                .andExpect(jsonPath("$.message").value("success"))
+                .andExpect(jsonPath("$.data.completedCount").exists())
+                .andExpect(jsonPath("$.data.totalCount").exists());
     }
 
     /**
@@ -63,10 +80,11 @@ public class WordControllerTest {
         String request = "{\"wordId\": 1}";
 
         mockMvc.perform(post("/api/words/learn")
-                        .header("Authorization", "Bearer mock-token")
+                        .header("Authorization", bearerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(request))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
     }
 
     /**
@@ -78,11 +96,13 @@ public class WordControllerTest {
                         .param("keyword", "abandon")
                         .param("page", "1")
                         .param("size", "10")
-                        .header("Authorization", "Bearer mock-token"))
+                        .header("Authorization", bearerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.content").exists())
-                .andExpect(jsonPath("$.data.total").exists());
+                .andExpect(jsonPath("$.message").value("success"))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data[0].id").value(1))
+                .andExpect(jsonPath("$.data[0].word").value("abandon"));
     }
 
     /**
@@ -91,12 +111,11 @@ public class WordControllerTest {
     @Test
     void searchWords_default_pagination() throws Exception {
         mockMvc.perform(get("/api/words/search")
-                        .param("keyword", "test")
-                        .header("Authorization", "Bearer mock-token"))
+                        .param("keyword", "ab")
+                        .header("Authorization", bearerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.page").value(1))
-                .andExpect(jsonPath("$.data.size").value(20));
+                .andExpect(jsonPath("$.data").isArray());
     }
 
     /**
@@ -105,12 +124,13 @@ public class WordControllerTest {
     @Test
     void getWordDetail_success() throws Exception {
         mockMvc.perform(get("/api/words/1")
-                        .header("Authorization", "Bearer mock-token"))
+                        .header("Authorization", bearerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.message").value("success"))
                 .andExpect(jsonPath("$.data.id").value(1))
                 .andExpect(jsonPath("$.data.word").exists())
-                .andExpect(jsonPath("$.data.meaning").exists());
+                .andExpect(jsonPath("$.data.meaning").isArray());
     }
 
     /**
@@ -119,9 +139,19 @@ public class WordControllerTest {
     @Test
     void getWordDetail_notFound() throws Exception {
         mockMvc.perform(get("/api/words/999")
-                        .header("Authorization", "Bearer mock-token"))
+                        .header("Authorization", bearerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(404))
                 .andExpect(jsonPath("$.message").value("单词不存在"));
+    }
+
+    /**
+     * 未携带 Token：拦截器返回 HTTP 401，body.code 与 HTTP 状态一致（与 CLAUDE 约定一致）
+     */
+    @Test
+    void getDailyWords_unauthorized() throws Exception {
+        mockMvc.perform(get("/api/words/daily"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(401));
     }
 }

@@ -1,13 +1,16 @@
 package com.zychen.backend.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zychen.backend.config.JwtUtil;
 import com.zychen.backend.dto.request.ChallengeStartRequest;
 import com.zychen.backend.dto.request.ChallengeSubmitRequest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.ArrayList;
@@ -18,6 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@Sql(scripts = "/sql/challenge-test-data.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS)
 public class ChallengeControllerTest {
 
     @Autowired
@@ -25,6 +29,16 @@ public class ChallengeControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    private String bearerToken;
+
+    @BeforeEach
+    void setUp() {
+        bearerToken = "Bearer " + jwtUtil.generateToken(1L, "jwt_challenge_user");
+    }
 
     /**
      * 测试1：开始闯关成功
@@ -35,13 +49,14 @@ public class ChallengeControllerTest {
         request.setLevelType(1);
 
         mockMvc.perform(post("/api/challenge/start")
-                        .header("Authorization", "Bearer mock-token")
+                        .header("Authorization", bearerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.message").value("success"))
                 .andExpect(jsonPath("$.data.challengeId").exists())
-                .andExpect(jsonPath("$.data.questions").exists())
+                .andExpect(jsonPath("$.data.questions").isArray())
                 .andExpect(jsonPath("$.data.timeLimit").exists());
     }
 
@@ -53,7 +68,7 @@ public class ChallengeControllerTest {
         String request = "{}";  // 空对象
 
         mockMvc.perform(post("/api/challenge/start")
-                        .header("Authorization", "Bearer mock-token")
+                        .header("Authorization", bearerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(request))
                 .andExpect(status().isBadRequest());
@@ -68,7 +83,7 @@ public class ChallengeControllerTest {
         request.setLevelType(5);  // 最大是3
 
         mockMvc.perform(post("/api/challenge/start")
-                        .header("Authorization", "Bearer mock-token")
+                        .header("Authorization", bearerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -79,7 +94,6 @@ public class ChallengeControllerTest {
      */
     @Test
     void submitChallenge_success() throws Exception {
-        // 构造答案列表
         List<ChallengeSubmitRequest.AnswerItem> answers = new ArrayList<>();
         ChallengeSubmitRequest.AnswerItem answer1 = new ChallengeSubmitRequest.AnswerItem();
         answer1.setQuestionId(1L);
@@ -95,14 +109,16 @@ public class ChallengeControllerTest {
 
         ChallengeSubmitRequest request = new ChallengeSubmitRequest();
         request.setChallengeId("ch_1701234567890");
+        request.setLevelType(1);
         request.setAnswers(answers);
 
         mockMvc.perform(post("/api/challenge/submit")
-                        .header("Authorization", "Bearer mock-token")
+                        .header("Authorization", bearerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.message").value("success"))
                 .andExpect(jsonPath("$.data.score").exists())
                 .andExpect(jsonPath("$.data.correctCount").exists())
                 .andExpect(jsonPath("$.data.totalCount").exists())
@@ -123,11 +139,11 @@ public class ChallengeControllerTest {
         answers.add(answer);
 
         ChallengeSubmitRequest request = new ChallengeSubmitRequest();
+        request.setLevelType(1);
         request.setAnswers(answers);
-        // 缺少 challengeId
 
         mockMvc.perform(post("/api/challenge/submit")
-                        .header("Authorization", "Bearer mock-token")
+                        .header("Authorization", bearerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -140,10 +156,10 @@ public class ChallengeControllerTest {
     void submitChallenge_failed_missing_answers() throws Exception {
         ChallengeSubmitRequest request = new ChallengeSubmitRequest();
         request.setChallengeId("ch_1701234567890");
-        // 缺少 answers
+        request.setLevelType(1);
 
         mockMvc.perform(post("/api/challenge/submit")
-                        .header("Authorization", "Bearer mock-token")
+                        .header("Authorization", bearerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -157,10 +173,11 @@ public class ChallengeControllerTest {
         mockMvc.perform(get("/api/challenge/records")
                         .param("page", "1")
                         .param("size", "10")
-                        .header("Authorization", "Bearer mock-token"))
+                        .header("Authorization", bearerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.content").exists())
+                .andExpect(jsonPath("$.message").value("success"))
+                .andExpect(jsonPath("$.data.content").isArray())
                 .andExpect(jsonPath("$.data.total").exists())
                 .andExpect(jsonPath("$.data.page").value(1))
                 .andExpect(jsonPath("$.data.size").value(10));
@@ -175,7 +192,7 @@ public class ChallengeControllerTest {
                         .param("levelType", "1")
                         .param("page", "1")
                         .param("size", "10")
-                        .header("Authorization", "Bearer mock-token"))
+                        .header("Authorization", bearerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.content").exists());
@@ -187,10 +204,21 @@ public class ChallengeControllerTest {
     @Test
     void getChallengeRecords_default_pagination() throws Exception {
         mockMvc.perform(get("/api/challenge/records")
-                        .header("Authorization", "Bearer mock-token"))
+                        .header("Authorization", bearerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.page").value(1))
                 .andExpect(jsonPath("$.data.size").value(20));
+    }
+
+    @Test
+    void startChallenge_unauthorized() throws Exception {
+        ChallengeStartRequest request = new ChallengeStartRequest();
+        request.setLevelType(1);
+        mockMvc.perform(post("/api/challenge/start")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(401));
     }
 }
