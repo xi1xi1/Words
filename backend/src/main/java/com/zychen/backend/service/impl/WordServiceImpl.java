@@ -267,6 +267,9 @@ public class WordServiceImpl implements WordService {
 
     /**
      * 创建新的用户单词记录
+     *
+     * 需求：新词第一次进入学习队列时，应立即出现在「今日学习列表」中，
+     * 且在 1/2/3 阶段学习未完成前都不应因为 next_review 被排除。
      */
     private UserWord createNewUserWord(Long userId, Long wordId) {
         UserWord userWord = new UserWord();
@@ -277,8 +280,9 @@ public class WordServiceImpl implements WordService {
         userWord.setTodayMastered(0);    // 今日未掌握
         userWord.setReviewCount(0);
         userWord.setMemoryScore(BigDecimal.ZERO);
-        userWord.setLastStudyTime(LocalDateTime.now());
-        userWord.setNextReview(LocalDateTime.now().plusDays(1));
+        // 新分配的新词：还没开始学，且应立即进入今日队列
+        userWord.setLastStudyTime(null);
+        userWord.setNextReview(LocalDateTime.now());
 
         userWordMapper.insert(userWord);
         log.info("创建新词记录: userId={}, wordId={}", userId, wordId);
@@ -301,6 +305,8 @@ public class WordServiceImpl implements WordService {
                 userWord.setMemoryScore(
                         calculateMemoryScore(userWord.getMemoryScore(), true, currentStage)
                 );
+                // 阶段 1/2 答对后仍应继续参与「今日学习」，next_review 维持为“现在”
+                userWord.setNextReview(LocalDateTime.now());
                 log.debug("答对，进入下一阶段: stage {} -> {}", currentStage, currentStage + 1);
             } else {
                 // 阶段3答对：今日掌握该单词
@@ -324,7 +330,8 @@ public class WordServiceImpl implements WordService {
             userWord.setMemoryScore(
                     calculateMemoryScore(userWord.getMemoryScore(), false, currentStage)
             );
-            userWord.setNextReview(LocalDateTime.now().plusDays(1));
+            // 答错后应立即回到今日学习队列重新开始阶段 1
+            userWord.setNextReview(LocalDateTime.now());
 
             // 如果之前是已掌握状态，降级回学习中
             if (userWord.getStatus() == 1) {
