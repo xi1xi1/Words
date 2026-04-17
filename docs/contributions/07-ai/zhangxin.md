@@ -109,7 +109,7 @@
 
 ## PR 链接
 
-- PR #31：https://github.com/xi1xi1/Words/pull/31
+- PR #38：https://github.com/xi1xi1/Words/pull/38
 
 ---
 
