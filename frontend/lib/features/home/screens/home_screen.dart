@@ -26,6 +26,8 @@ class _HomeContentState extends State<HomeContent> {
   bool _loading = true;
   List<Word> _newWords = [];
   List<Word> _reviewWords = [];
+  int _maxNewWords = 0;
+  int _maxReviewWords = 0;
 
   static const _bg = Color(0xFFF7F8FA);
   static const _blue = Color(0xFF4A74F5);
@@ -46,12 +48,16 @@ class _HomeContentState extends State<HomeContent> {
       setState(() {
         _newWords = r.newWords;
         _reviewWords = r.reviewWords;
+        _maxNewWords = r.maxNewWords;
+        _maxReviewWords = r.maxReviewWords;
       });
     } on ApiException {
       if (!mounted) return;
       setState(() {
         _newWords = [];
         _reviewWords = [];
+        _maxNewWords = 0;
+        _maxReviewWords = 0;
       });
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -104,8 +110,14 @@ class _HomeContentState extends State<HomeContent> {
   @override
   Widget build(BuildContext context) {
     final featured = _featured;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final surface = theme.colorScheme.surface;
+    final onSurface = theme.colorScheme.onSurface;
+    final muted = isDark ? const Color(0xFF9AA3AF) : _muted;
+    final exampleBg = isDark ? const Color(0xFF252A31) : const Color(0xFFF3F4F6);
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: _load,
         child: SingleChildScrollView(
@@ -128,9 +140,9 @@ class _HomeContentState extends State<HomeContent> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_greeting(), style: const TextStyle(fontSize: 13, color: _muted)),
+                      Text(_greeting(), style: TextStyle(fontSize: 13, color: muted)),
                       const SizedBox(height: 2),
-                      const Text('词汇学习者', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _navy)),
+                      Text('词汇学习者', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: onSurface)),
                     ],
                   ),
                 ),
@@ -138,13 +150,17 @@ class _HomeContentState extends State<HomeContent> {
               const SizedBox(height: 22),
               Row(children: [
                 Expanded(
-                  child: _statCard('今日学习', '${_newWords.length}', Icons.menu_book_rounded, _blue, () => context.push('/study')),
+                  child: _statCard('今日学习', '${_maxNewWords > 0 ? _maxNewWords : _newWords.length}', Icons.menu_book_rounded, _blue, () async {
+                    await context.push('/study');
+                    if (mounted) await _load();
+                  }),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _statCard('待复习', '${_reviewWords.length}', Icons.autorenew_rounded, const Color(0xFFFF9F43), () {
+                  child: _statCard('待复习', '${_maxReviewWords > 0 ? _maxReviewWords : _reviewWords.length}', Icons.autorenew_rounded, const Color(0xFFFF9F43), () async {
                     if (_reviewWords.isNotEmpty) {
-                      context.push('/review');
+                      await context.push('/review');
+                      if (mounted) await _load();
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('暂无需要复习的单词')));
                     }
@@ -184,8 +200,13 @@ class _HomeContentState extends State<HomeContent> {
   }
 
   Widget _statCard(String label, String value, IconData icon, Color color, VoidCallback onTap) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final surface = theme.colorScheme.surface;
+    final onSurface = theme.colorScheme.onSurface;
+    final muted = isDark ? const Color(0xFF9AA3AF) : _muted;
     return Material(
-      color: Colors.white,
+      color: surface,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -199,9 +220,9 @@ class _HomeContentState extends State<HomeContent> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Icon(icon, color: color),
             const SizedBox(height: 12),
-            Text(value, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: _navy)),
+            Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: onSurface)),
             const SizedBox(height: 4),
-            Text(label, style: const TextStyle(fontSize: 13, color: _muted)),
+            Text(label, style: TextStyle(fontSize: 13, color: muted)),
           ]),
         ),
       ),
@@ -209,6 +230,12 @@ class _HomeContentState extends State<HomeContent> {
   }
 
   Widget _featuredCard(Word word, {bool isPlaceholder = false}) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final surface = theme.colorScheme.surface;
+    final onSurface = theme.colorScheme.onSurface;
+    final muted = isDark ? const Color(0xFF9AA3AF) : _muted;
+    final exampleBg = isDark ? const Color(0xFF252A31) : const Color(0xFFF3F4F6);
     final ex = word.example;
     final en = ex != null && ex.isNotEmpty ? ex.first : '';
     final zh = ex != null && ex.length > 1 ? ex[1] : '';
@@ -217,32 +244,32 @@ class _HomeContentState extends State<HomeContent> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 14, offset: const Offset(0, 6))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Expanded(child: Text(word.word, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _navy))),
+          Expanded(child: Text(word.word, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: onSurface))),
           TextButton(
             onPressed: () => _toggleWordbook(word),
             child: Text(inWordbook ? '已加入' : '+ 生词本', style: TextStyle(color: inWordbook ? _blue : _muted)),
           ),
         ]),
-        if (word.phonetic.isNotEmpty) Text(word.phonetic, style: const TextStyle(fontSize: 14, color: _muted)),
+        if (word.phonetic.isNotEmpty) Text(word.phonetic, style: TextStyle(fontSize: 14, color: muted)),
         const SizedBox(height: 10),
-        Text(word.meaning.join('；'), style: const TextStyle(fontSize: 15, height: 1.4, color: _navy)),
+        Text(word.meaning.join('；'), style: TextStyle(fontSize: 15, height: 1.4, color: onSurface)),
         if (en.isNotEmpty) ...[
           const SizedBox(height: 16),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(14)),
+            decoration: BoxDecoration(color: exampleBg, borderRadius: BorderRadius.circular(14)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               _richExample(en, word.word),
               if (zh.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                Text(zh, style: const TextStyle(fontSize: 13, color: _muted, height: 1.35)),
+                Text(zh, style: TextStyle(fontSize: 13, color: muted, height: 1.35)),
               ]
             ]),
           ),
@@ -262,9 +289,11 @@ class _HomeContentState extends State<HomeContent> {
   }
 
   Widget _richExample(String sentence, String w) {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
     final i = sentence.toLowerCase().indexOf(w.toLowerCase());
-    if (i < 0) return Text(sentence, style: const TextStyle(fontSize: 14, height: 1.4, color: _navy));
-    return Text.rich(TextSpan(style: const TextStyle(fontSize: 14, height: 1.4, color: _navy), children: [
+    if (i < 0) return Text(sentence, style: TextStyle(fontSize: 14, height: 1.4, color: onSurface));
+    return Text.rich(TextSpan(style: TextStyle(fontSize: 14, height: 1.4, color: onSurface), children: [
       TextSpan(text: sentence.substring(0, i)),
       TextSpan(text: sentence.substring(i, i + w.length), style: const TextStyle(color: _blue, fontWeight: FontWeight.w600)),
       TextSpan(text: sentence.substring(i + w.length)),

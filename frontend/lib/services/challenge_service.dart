@@ -46,7 +46,7 @@ class ChallengeService {
     );
 
     final data = response['data'] as Map<String, dynamic>? ?? {};
-    final list = data['list'] as List<dynamic>? ?? [];
+    final list = (data['content'] ?? data['list'] ?? <dynamic>[]) as List<dynamic>;
     return list
         .map((e) => BattleRecord.fromJson(e as Map<String, dynamic>))
         .toList();

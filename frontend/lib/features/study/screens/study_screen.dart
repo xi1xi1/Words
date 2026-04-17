@@ -20,6 +20,8 @@ class _StudyScreenState extends State<StudyScreen> {
   static const _navy = Color(0xFF1A1C1E);
   static const _green = Color(0xFF4CAF50);
 
+  static const int _batchSize = 10;
+
   bool _isLoading = true;
   bool _isSubmitting = false;
   bool _showResult = false;
@@ -32,6 +34,8 @@ class _StudyScreenState extends State<StudyScreen> {
   Word? _currentWord;
   int _currentStage = 1;
   LearnProgress? _progress;
+  int _batchCompletedCount = 0;
+  int _batchTargetCount = _batchSize;
 
   static const List<String> _fallbackDistractors = [
     '短暂的；瞬息的',
@@ -47,8 +51,91 @@ class _StudyScreenState extends State<StudyScreen> {
   }
 
   double get _headerProgress {
-    if (_progress == null || _progress!.totalCount == 0) return 0;
-    return _progress!.progress.clamp(0.0, 1.0);
+    if (_batchTargetCount == 0) return 0;
+    return (_batchCompletedCount / _batchTargetCount).clamp(0.0, 1.0);
+  }
+
+  Future<void> _startNextBatch() async {
+    _batchCompletedCount = 0;
+    _batchTargetCount = _batchSize;
+    await _loadAndStartStudy();
+  }
+
+  void _exitToHome() {
+    if (!mounted) return;
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop(true);
+      return;
+    }
+    context.go('/');
+  }
+
+  void _handleClose() {
+    if (_batchCompletedCount > 0) {
+      _showBatchSettlementDialog(completed: false);
+      return;
+    }
+    _exitToHome();
+  }
+
+  void _showBatchSettlementDialog({required bool completed}) {
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+
+    final title = completed ? '本轮学习完成' : '先休息一下';
+    final subtitle = completed
+        ? '本轮已完成 $_batchCompletedCount / $_batchTargetCount 个单词'
+        : '当前进度 $_batchCompletedCount / $_batchTargetCount';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              completed ? Icons.celebration : Icons.hotel_rounded,
+              color: _headerBlue,
+              size: 64,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              subtitle,
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _exitToHome();
+            },
+            child: const Text('休息一下'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              await _startNextBatch();
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: _headerBlue,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('继续学习'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadAndStartStudy() async {
@@ -68,11 +155,13 @@ class _StudyScreenState extends State<StudyScreen> {
 
       allWords.shuffle();
       final first = allWords.first;
+      final batchTotal = result.maxNewWords > 0 ? result.maxNewWords : _batchSize;
 
       setState(() {
+        _batchTargetCount = batchTotal;
         _progress = LearnProgress(
-          completedCount: 0,
-          totalCount: result.total > 0 ? result.total : allWords.length,
+          completedCount: _batchCompletedCount,
+          totalCount: _batchTargetCount,
         );
         _currentWord = first;
         _prepareForStage(first.stage ?? 1);
@@ -82,7 +171,7 @@ class _StudyScreenState extends State<StudyScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message), backgroundColor: Colors.red),
       );
-      context.pop();
+      _exitToHome();
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -99,18 +188,7 @@ class _StudyScreenState extends State<StudyScreen> {
 
       if (allWords.isEmpty) {
         setState(() => _isSubmitting = false);
-        final completed = _progress?.completedCount ?? 0;
-        final total = _progress?.totalCount ?? 0;
-        if (total > 0 && completed >= total) {
-          _finishStudy();
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('今日单词已学完'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
+        _showBatchSettlementDialog(completed: _batchCompletedCount >= _batchTargetCount);
         return;
       }
 
@@ -120,8 +198,8 @@ class _StudyScreenState extends State<StudyScreen> {
       setState(() {
         _currentWord = next;
         _progress = LearnProgress(
-          completedCount: _progress?.completedCount ?? 0,
-          totalCount: result.total > 0 ? result.total : allWords.length,
+          completedCount: _batchCompletedCount,
+          totalCount: _batchTargetCount,
         );
         _prepareForStage(next.stage ?? 1);
         _isSubmitting = false;
@@ -217,26 +295,33 @@ class _StudyScreenState extends State<StudyScreen> {
       await Future.delayed(const Duration(milliseconds: 220));
       if (!mounted) return;
 
+      if (isCorrect && _currentStage == 3) {
+        _batchCompletedCount++;
+      }
+
       setState(() {
-        _progress = result.progress;
+        _progress = LearnProgress(
+          completedCount: _batchCompletedCount,
+          totalCount: _batchTargetCount,
+        );
       });
 
+      if (_batchCompletedCount >= _batchTargetCount) {
+        _showBatchSettlementDialog(completed: true);
+        return;
+      }
+
       if (result.nextWord == null) {
-        final completed = result.progress.completedCount;
-        final total = result.progress.totalCount;
-
-        if (total > 0 && completed >= total) {
-          _finishStudy();
-          return;
-        }
-
         await _loadNextWordFromQueue();
         return;
       }
 
       setState(() {
         _currentWord = result.nextWord;
-        _progress = result.progress;
+        _progress = LearnProgress(
+          completedCount: _batchCompletedCount,
+          totalCount: _batchTargetCount,
+        );
         _prepareForStage(_currentWord!.stage ?? 1);
         _isSubmitting = false;
       });
@@ -246,55 +331,8 @@ class _StudyScreenState extends State<StudyScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message), backgroundColor: Colors.red),
       );
-      context.pop();
+      _exitToHome();
     }
-  }
-
-  void _finishStudy() {
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.celebration, color: _headerBlue, size: 64),
-            const SizedBox(height: 16),
-            const Text(
-              '恭喜完成！',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '今日已学习 ${_progress?.completedCount ?? 0} 个单词',
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  context.pop();
-                },
-                style: FilledButton.styleFrom(
-                  backgroundColor: _headerBlue,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text('返回', style: TextStyle(fontSize: 16)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   String _exampleLine(Word w) {
@@ -325,8 +363,8 @@ class _StudyScreenState extends State<StudyScreen> {
               const Text('今日单词已全部学完！', style: TextStyle(fontSize: 18)),
               const SizedBox(height: 24),
               FilledButton(
-                onPressed: () => context.pop(),
-                child: const Text('返回'),
+                onPressed: _exitToHome,
+                child: const Text('返回首页'),
               ),
             ],
           ),
@@ -372,7 +410,7 @@ class _StudyScreenState extends State<StudyScreen> {
           Row(
             children: [
               IconButton(
-                onPressed: () => context.pop(),
+                onPressed: _handleClose,
                 icon: const Icon(Icons.close, color: Colors.white, size: 26),
               ),
               Expanded(

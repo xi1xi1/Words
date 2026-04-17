@@ -9,7 +9,6 @@ import 'features/challenge/screens/challenge_select_screen.dart';
 import 'features/challenge/screens/challenge_result_screen.dart';
 import 'features/profile/screens/profile_screen.dart';
 import 'features/wordbook/screens/wordbook_screen.dart';
-import 'features/offline/screens/offline_words_screen.dart';
 import 'features/leaderboard/screens/leaderboard_screen.dart';
 import 'features/wordbook/screens/wordbook_select_screen.dart';
 import 'features/profile/screens/settings_screen.dart';
@@ -153,13 +152,6 @@ class AppRouter {
           parentNavigatorKey: rootNavigatorKey,
           pageBuilder: (context, state) =>
               const MaterialPage(child: WordbookScreen()),
-        ),
-        GoRoute(
-          path: '/offline-words',
-          name: 'offline-words',
-          parentNavigatorKey: rootNavigatorKey,
-          pageBuilder: (context, state) =>
-              const MaterialPage(child: OfflineWordsScreen()),
         ),
         GoRoute(
           path: '/leaderboard',

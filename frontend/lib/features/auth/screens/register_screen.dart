@@ -218,6 +218,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       onPressed: _isLoading ? null : _handleRegister,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF4F7CFF),
+                        foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -231,7 +232,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('注册', style: TextStyle(fontSize: 16)),
+                          : const Text('立即注册', style: TextStyle(fontSize: 16)),
                     ),
                   ),
                   const SizedBox(height: 16),

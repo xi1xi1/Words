@@ -119,17 +119,27 @@ class DailyWordsResponse {
   final List<Word> newWords;
   final List<Word> reviewWords;
   final int total;
+  final int maxNewWords;
+  final int maxReviewWords;
 
   DailyWordsResponse({
     required this.newWords,
     required this.reviewWords,
     required this.total,
+    required this.maxNewWords,
+    required this.maxReviewWords,
   });
 
   factory DailyWordsResponse.fromJson(Map<String, dynamic> json) {
     final data = json['data'];
     if (data == null || data is! Map<String, dynamic>) {
-      return DailyWordsResponse(newWords: [], reviewWords: [], total: 0);
+      return DailyWordsResponse(
+        newWords: [],
+        reviewWords: [],
+        total: 0,
+        maxNewWords: 0,
+        maxReviewWords: 0,
+      );
     }
 
     final newWordsList = data['newWords'] as List<dynamic>? ?? [];
@@ -145,6 +155,9 @@ class DailyWordsResponse {
       total:
           (data['total'] as num?)?.toInt() ??
           newWordsList.length + reviewWordsList.length,
+      maxNewWords: (data['maxNewWords'] as num?)?.toInt() ?? newWordsList.length,
+      maxReviewWords:
+          (data['maxReviewWords'] as num?)?.toInt() ?? reviewWordsList.length,
     );
   }
 
@@ -154,6 +167,8 @@ class DailyWordsResponse {
         'newWords': newWords.map((e) => e.toJson()).toList(),
         'reviewWords': reviewWords.map((e) => e.toJson()).toList(),
         'total': total,
+        'maxNewWords': maxNewWords,
+        'maxReviewWords': maxReviewWords,
       },
     };
   }

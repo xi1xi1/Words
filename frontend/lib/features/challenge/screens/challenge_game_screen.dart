@@ -1,5 +1,6 @@
 // frontend/lib/features/challenge/screens/challenge_game_screen.dart
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -44,6 +45,8 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> {
 
   static const _headerBlue = Color(0xFF5B86F8);
   static const _bg = Color(0xFFF7F8FA);
+  static const _success = Color(0xFF2EAF62);
+  static const _danger = Color(0xFFE24A4A);
 
   @override
   void initState() {
@@ -336,6 +339,10 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> {
 
   Widget _optionTile(String text, int index) {
     final sel = _selectedIndex == index;
+    final currentQuestion = widget.questions[_currentIndex];
+    final showResult = _selectedIndex != null;
+    final isCorrect = index == currentQuestion.correctIndex;
+    final isWrongSelected = sel && !isCorrect;
     return GestureDetector(
       onTap: _selectedIndex == null && !_isLoading ? () => _selectAnswer(index) : null,
       child: Container(
@@ -345,8 +352,12 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: sel ? widget.accentColor : const Color(0xFFE0E0E0),
-            width: sel ? 2 : 1,
+            color: showResult
+                ? (isCorrect
+                    ? _success
+                    : (isWrongSelected ? _danger : const Color(0xFFE0E0E0)))
+                : (sel ? widget.accentColor : const Color(0xFFE0E0E0)),
+            width: (showResult && (isCorrect || isWrongSelected)) || sel ? 2.2 : 1,
           ),
         ),
         child: Text(
@@ -356,8 +367,14 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontSize: 14,
-            color: sel ? widget.accentColor : const Color(0xFF636E72),
-            fontWeight: sel ? FontWeight.w600 : FontWeight.normal,
+            color: showResult
+                ? (isCorrect
+                    ? _success
+                    : (isWrongSelected ? _danger : const Color(0xFF636E72)))
+                : (sel ? widget.accentColor : const Color(0xFF636E72)),
+            fontWeight: sel || (showResult && isCorrect)
+                ? FontWeight.w600
+                : FontWeight.normal,
           ),
         ),
       ),
@@ -366,6 +383,10 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> {
 
   Widget _optionTileFullWidth(String text, int index) {
     final sel = _selectedIndex == index;
+    final currentQuestion = widget.questions[_currentIndex];
+    final showResult = _selectedIndex != null;
+    final isCorrect = index == currentQuestion.correctIndex;
+    final isWrongSelected = sel && !isCorrect;
     return GestureDetector(
       onTap: _selectedIndex == null && !_isLoading ? () => _selectAnswer(index) : null,
       child: Container(
@@ -375,16 +396,26 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: sel ? widget.accentColor : const Color(0xFFE0E0E0),
-            width: sel ? 2 : 1,
+            color: showResult
+                ? (isCorrect
+                    ? _success
+                    : (isWrongSelected ? _danger : const Color(0xFFE0E0E0)))
+                : (sel ? widget.accentColor : const Color(0xFFE0E0E0)),
+            width: (showResult && (isCorrect || isWrongSelected)) || sel ? 2.2 : 1,
           ),
         ),
         child: Text(
           text,
           style: TextStyle(
             fontSize: 15,
-            color: sel ? widget.accentColor : const Color(0xFF333333),
-            fontWeight: sel ? FontWeight.w600 : FontWeight.normal,
+            color: showResult
+                ? (isCorrect
+                    ? _success
+                    : (isWrongSelected ? _danger : const Color(0xFF333333)))
+                : (sel ? widget.accentColor : const Color(0xFF333333)),
+            fontWeight: sel || (showResult && isCorrect)
+                ? FontWeight.w600
+                : FontWeight.normal,
           ),
         ),
       ),
