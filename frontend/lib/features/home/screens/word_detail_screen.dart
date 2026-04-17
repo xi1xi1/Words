@@ -59,11 +59,11 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
     }
   }
 
-  Future<void> _generateAIExample() async {
+  Future<void> _generateAIMemory() async {
     if (_word == null || _word!.id <= 0 || _aiLoading) return;
     setState(() => _aiLoading = true);
     try {
-      final response = await _wordbookService.getAIContent(_word!.id);
+      final response = await _wordbookService.getAIMemoryContent(_word!.id);
       if (!mounted) return;
       setState(() => _aiContent = response);
     } on ApiException catch (e) {
@@ -268,132 +268,285 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
     List<MapEntry<String, String>> examples,
     String word,
   ) {
-    return _sectionCard(
-      titleWidget: Row(
-        children: [
-          const Text('例句'),
-          const Spacer(),
-          if (_aiContent == null)
-            TextButton.icon(
-              onPressed: _aiLoading ? null : _generateAIExample,
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              icon: _aiLoading
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.auto_awesome, size: 16),
-              label: const Text('AI生成', style: TextStyle(fontSize: 13)),
-            )
-          else
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF3E0),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.auto_awesome, size: 14, color: Color(0xFFFF9800)),
-                  SizedBox(width: 4),
-                  Text(
-                    'AI已生成',
-                    style: TextStyle(fontSize: 12, color: Color(0xFFE65100)),
+    final aiContent = _aiContent;
+    final hasAiContent = aiContent?.hasContent ?? false;
+
+    return Column(
+      children: [
+        _sectionCard(
+          titleWidget: Row(
+            children: [
+              const Text('例句'),
+              const Spacer(),
+              if (!hasAiContent)
+                TextButton.icon(
+                  onPressed: _aiLoading ? null : _generateAIMemory,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                ],
-              ),
-            ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ...List.generate(examples.length, (index) {
-            final item = examples[index];
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.key,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: _navy,
-                    height: 1.6,
+                  icon: _aiLoading
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.auto_awesome, size: 16),
+                  label: const Text('生成联想记忆', style: TextStyle(fontSize: 13)),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  item.value,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: _muted,
-                    height: 1.5,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3E0),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                ),
-                if (index != examples.length - 1) ...[
-                  const SizedBox(height: 16),
-                  const Divider(height: 1, color: _cardBorder),
-                  const SizedBox(height: 16),
-                ],
-              ],
-            );
-          }),
-          if (_aiContent != null && _aiContent!.aiExample.isNotEmpty) ...[
-            if (examples.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              const Divider(height: 1, color: _cardBorder),
-              const SizedBox(height: 16),
-            ],
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF8E1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFFE082)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.auto_awesome,
-                        size: 16,
+                        size: 14,
                         color: Color(0xFFFF9800),
                       ),
-                      SizedBox(width: 6),
+                      SizedBox(width: 4),
                       Text(
-                        'AI生成例句',
+                        '联想已生成',
                         style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
                           color: Color(0xFFE65100),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _aiContent!.aiExample,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      color: _navy,
-                      height: 1.6,
+                ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ...List.generate(examples.length, (index) {
+                final item = examples[index];
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.key,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: _navy,
+                        height: 1.6,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      item.value,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: _muted,
+                        height: 1.5,
+                      ),
+                    ),
+                    if (index != examples.length - 1) ...[
+                      const SizedBox(height: 16),
+                      const Divider(height: 1, color: _cardBorder),
+                      const SizedBox(height: 16),
+                    ],
+                  ],
+                );
+              }),
+            ],
+          ),
+        ),
+        if (hasAiContent) _buildAIMemoryCard(aiContent!, word),
+      ],
+    );
+  }
+
+  Widget _buildAIMemoryCard(AIContentResponse aiContent, String word) {
+    return _sectionCard(
+      titleWidget: const Row(
+        children: [
+          Icon(Icons.auto_awesome, size: 18, color: Color(0xFFFF9800)),
+          SizedBox(width: 8),
+          Text('AI联想记忆'),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (aiContent.meaning.trim().isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F7FF),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFDCE4FF)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.link_rounded, size: 16, color: _blue),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '记忆锚点：${aiContent.meaning}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: _navy,
+                        height: 1.5,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 14),
           ],
+          ..._buildMemorySections(aiContent),
+          if (aiContent.summary.trim().isNotEmpty) ...[
+            if (_hasAnyMemoryBlock(aiContent)) const SizedBox(height: 14),
+            _buildMemorySummary(aiContent.summary),
+          ],
+          if (aiContent.notes.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              aiContent.notes,
+              style: const TextStyle(
+                fontSize: 12,
+                color: _muted,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildMemorySections(AIContentResponse aiContent) {
+    final blocks = <MemoryHintBlock?>[
+      aiContent.homophonic,
+      aiContent.morpheme,
+      aiContent.story,
+    ].whereType<MemoryHintBlock>().toList();
+
+    final widgets = <Widget>[];
+    for (var i = 0; i < blocks.length; i++) {
+      widgets.add(_buildMemoryBlock(blocks[i]));
+      if (i != blocks.length - 1) {
+        widgets.add(const SizedBox(height: 12));
+      }
+    }
+    return widgets;
+  }
+
+  bool _hasAnyMemoryBlock(AIContentResponse aiContent) {
+    return (aiContent.homophonic?.isNotEmpty ?? false) ||
+        (aiContent.morpheme?.isNotEmpty ?? false) ||
+        (aiContent.story?.isNotEmpty ?? false);
+  }
+
+  Widget _buildMemoryBlock(MemoryHintBlock block) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFFE082)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.lightbulb_outline_rounded,
+                size: 16,
+                color: Color(0xFFFF9800),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                block.title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFE65100),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            block.content,
+            style: const TextStyle(
+              fontSize: 16,
+              color: _navy,
+              height: 1.6,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (block.explanation.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              block.explanation,
+              style: const TextStyle(
+                fontSize: 14,
+                color: _muted,
+                height: 1.6,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMemorySummary(String summary) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FBF4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFB7E4C7)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.task_alt_rounded, size: 16, color: _greenDark),
+              SizedBox(width: 6),
+              Text(
+                '一句记牢',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: _greenDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            summary,
+            style: const TextStyle(
+              fontSize: 15,
+              color: _navy,
+              height: 1.6,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );

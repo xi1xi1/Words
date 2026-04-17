@@ -30,7 +30,7 @@ class WordbookService {
     await _apiClient.delete('${ApiConstants.wordbookRemove}/$wordId');
   }
 
-  Future<AIContentResponse> getAIContent(int wordId) async {
+  Future<AIContentResponse> getAIMemoryContent(int wordId) async {
     final response = await _apiClient.get('${ApiConstants.wordbookAi}/$wordId');
     return AIContentResponse.fromJson(response);
   }

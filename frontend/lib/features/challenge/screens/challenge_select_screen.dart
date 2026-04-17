@@ -133,7 +133,7 @@ class _ChallengeSelectScreenState extends State<ChallengeSelectScreen> {
     final topPad = MediaQuery.paddingOf(context).top;
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           CustomScrollView(
@@ -210,7 +210,7 @@ class _ChallengeSelectScreenState extends State<ChallengeSelectScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(

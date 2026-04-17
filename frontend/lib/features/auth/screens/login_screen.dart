@@ -160,6 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4F7CFF),
+                      foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -173,7 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text('登录', style: TextStyle(fontSize: 16)),
+                        : const Text('立即登录', style: TextStyle(fontSize: 16)),
                   ),
                 ),
                 const SizedBox(height: 16),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'app.dart';
 import 'core/providers/settings_provider.dart';
@@ -10,8 +11,25 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late final UserProvider _userProvider;
+  late final WordbookProvider _wordbookProvider;
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    _userProvider = UserProvider();
+    _wordbookProvider = WordbookProvider()..load();
+    _router = AppRouter.createRouter(_userProvider);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,20 +38,20 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider<SettingsProvider>(
           create: (_) => SettingsProvider(),
         ),
-        ChangeNotifierProvider<UserProvider>(create: (_) => UserProvider()),
-        ChangeNotifierProvider<WordbookProvider>(
-          create: (_) => WordbookProvider()..load(),
+        ChangeNotifierProvider<UserProvider>.value(value: _userProvider),
+        ChangeNotifierProvider<WordbookProvider>.value(
+          value: _wordbookProvider,
         ),
       ],
-      child: Consumer2<SettingsProvider, UserProvider>(
-        builder: (context, settingsProvider, userProvider, child) {
+      child: Consumer<SettingsProvider>(
+        builder: (context, settingsProvider, child) {
           return MaterialApp.router(
             title: '背了么',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: settingsProvider.themeMode,
-            routerConfig: AppRouter.createRouter(userProvider),
+            routerConfig: _router,
           );
         },
       ),
