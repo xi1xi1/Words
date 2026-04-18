@@ -38,7 +38,6 @@ class StudyStats {
 
   int get totalLearned => totalWords;
   int get streakDays => level;
-  int get totalTime => todayStudy;
 
   Map<String, dynamic> toJson() {
     return {

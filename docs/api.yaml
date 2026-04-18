@@ -198,6 +198,22 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/Word'
+            total:
+              type: integer
+              description: 当前返回的新词与复习词合计
+              example: 12
+            learnableWordCount:
+              type: integer
+              description: |
+                可学单词数量（学会前都算待学习）：
+                `word` 中尚未出现在该用户 `user_word` 的词数
+                + `user_word` 中 status=0、today_mastered=0、review_count=0 的词数。
+              example: 1800
+            reviewableWordCount:
+              type: integer
+              description: |
+                可复习单词数量：`user_word` 中 status=0、review_count>0 且 next_review<=NOW() 的词数（仅查询，不改库表）。
+              example: 42
 
     LearnResponse:
       type: object
@@ -430,6 +446,91 @@ components:
           items:
             type: string
             format: date
+
+    MemoryHintBlock:
+      type: object
+      description: 单个联想记忆模块；如果该单词不适合该类型，可返回 null
+      properties:
+        title:
+          type: string
+          description: 前端展示标题
+          example: 谐音记忆
+        content:
+          type: string
+          description: 联想核心内容
+          example: 俺必胜
+        explanation:
+          type: string
+          description: 联想与释义之间的关联说明
+          example: 有雄心的人才会说“俺必胜”，帮助记住 ambition 表示雄心、野心。
+      required:
+        - title
+        - content
+        - explanation
+
+    AIMemoryContent:
+      type: object
+      properties:
+        word:
+          type: string
+          example: ambition
+        meaning:
+          type: string
+          description: 当前联想主要绑定的中文释义
+          example: 野心；雄心
+        homophonic:
+          allOf:
+            - $ref: '#/components/schemas/MemoryHintBlock'
+          nullable: true
+          example:
+            title: 谐音记忆
+            content: 俺必胜
+            explanation: 有雄心的人才会说“俺必胜”，帮助记住 ambition 表示雄心、野心。
+        morpheme:
+          allOf:
+            - $ref: '#/components/schemas/MemoryHintBlock'
+          nullable: true
+          example:
+            title: 拆词联想
+            content: amb + it + ion
+            explanation: 可以联想成四处走动拉选票，体现强烈进取心和野心。
+        story:
+          allOf:
+            - $ref: '#/components/schemas/MemoryHintBlock'
+          nullable: true
+          example:
+            title: 故事记忆
+            content: 他为了竞选成功四处奔走，嘴里一直念着“俺必胜”，这份 ambition 让他停不下来。
+            explanation: 通过竞选奔走和“俺必胜”的故事，把 ambition 和记成雄心、野心。
+        summary:
+          type: string
+          description: 一句话记忆总结
+          example: ambition = 俺必胜 = 有雄心、有野心的人
+        notes:
+          type: string
+          nullable: true
+          description: 生成说明；用于提示某些记忆类型为何缺失
+          example: 该词谐音联想较自然，拆词为辅助记忆，并非严格词源分析。
+      required:
+        - word
+        - meaning
+        - summary
+
+    AIMemoryResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: success
+        data:
+          $ref: '#/components/schemas/AIMemoryContent'
+      required:
+        - code
+        - message
+        - data
 
 paths:
   /auth/register:
@@ -883,8 +984,17 @@ paths:
     get:
       tags:
         - Wordbook
-      summary: 获取AI生成内容
-      operationId: getAIContent
+      summary: 获取AI联想记忆内容
+      description: |
+        为指定单词生成结构化的联想记忆内容，优先返回更适合该单词的记忆钩子：
+        - 谐音记忆：将英文发音与中文短语建立记忆锚点
+        - 拆词联想：基于词形拆分、词根词缀或近似结构进行辅助记忆
+        - 故事记忆：用简短场景把单词含义串起来
+
+        说明：
+        - 并非每个单词都适合所有类型；不适合时对应字段可为 null
+        - 拆词联想用于辅助记忆，不保证严格词源学分析
+      operationId: getAIMemoryContent
       security:
         - bearerAuth: []
       parameters:
@@ -900,43 +1010,39 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  code:
-                    type: integer
-                    example: 200
-                  message:
-                    type: string
-                    example: success
-                  data:
-                    type: object
-                    properties:
-                      word:
-                        type: string
-                        example: chance
-                      examples:
-                        type: array
-                        items:
-                          type: string
-                        example: ["Take a chance on it."]
-                      aiExample:
-                        type: string
-                        example: "Give yourself a chance to succeed."
-                    required:
-                      - word
-                      - examples
-                      - aiExample
-                required:
-                  - code
-                  - message
-                  - data
-               example:
-                 code: 200
-                 message: success
-                 data:
-                   word: chance
-                   examples: ["Take a chance on it."]
-                   aiExample: "Give yourself a chance to succeed."
+                $ref: '#/components/schemas/AIMemoryResponse'
+              example:
+                code: 200
+                message: success
+                data:
+                  word: ambition
+                  meaning: 野心；雄心
+                  homophonic:
+                    title: 谐音记忆
+                    content: 俺必胜
+                    explanation: 有雄心的人才会说“俺必胜”，帮助记住 ambition 表示雄心、野心。
+                  morpheme:
+                    title: 拆词联想
+                    content: amb + it + ion
+                    explanation: 可以联想成四处走动拉选票，体现强烈进取心和野心。
+                  story:
+                    title: 故事记忆
+                    content: 他为了竞选成功四处奔走，嘴里一直念着“俺必胜”，这份 ambition 让他停不下来。
+                    explanation: 通过竞选奔走和“俺必胜”的故事，把 ambition 和记成雄心、野心。
+                  summary: ambition = 俺必胜 = 有雄心、有野心的人
+                  notes: 该词谐音联想较自然，拆词为辅助记忆，并非严格词源分析。
+        '404':
+          description: 单词不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: AI生成失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /study/stats:
     get:

@@ -81,7 +81,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: _loadData,
         child: SingleChildScrollView(
@@ -160,22 +160,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// 近 7 天每日学习词数（柱图）；接口失败时用演示数据
+  List<DateTime> get _recent7Days {
+    final now = DateTime.now();
+    return List.generate(
+      7,
+      (index) => DateTime(now.year, now.month, now.day - (6 - index)),
+    );
+  }
+
+  /// 近 7 天每日学习词数（柱图）；空数据时显示真实 0 值
   List<int> get _trendCounts {
-    const demo = [12, 18, 22, 16, 25, 20, 28];
     final t = _trend;
-    if (t == null || t.isEmpty) return demo;
-    final sorted = [...t]..sort((a, b) => a.date.compareTo(b.date));
-    final counts = sorted.map((e) => e.learnedCount).toList();
-    if (counts.length >= 7) return counts.sublist(counts.length - 7);
-    while (counts.length < 7) {
-      counts.insert(0, 0);
+    final recentDays = _recent7Days;
+    if (t == null || t.isEmpty) return List.filled(recentDays.length, 0);
+
+    final countByDate = <String, int>{};
+    for (final item in t) {
+      final key =
+          '${item.date.year}-${item.date.month.toString().padLeft(2, '0')}-${item.date.day.toString().padLeft(2, '0')}';
+      countByDate[key] = item.learnedCount;
     }
-    return counts;
+
+    return recentDays.map((day) {
+      final key =
+          '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+      return countByDate[key] ?? 0;
+    }).toList();
+  }
+
+  List<String> get _trendLabels {
+    const weekdays = ['一', '二', '三', '四', '五', '六', '日'];
+    return _recent7Days
+        .map((day) => weekdays[day.weekday - 1])
+        .toList();
   }
 
   Widget _buildTrendChart() {
     final counts = _trendCounts;
+    final labels = _trendLabels;
     final maxC = counts.isEmpty
         ? 1
         : counts.reduce((a, b) => a > b ? a : b).clamp(1, 9999);
@@ -183,7 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
         boxShadow: _cardShadow,
       ),
@@ -227,10 +249,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 8),
           Row(
             children: List.generate(
-              7,
+              labels.length,
               (i) => Expanded(
                 child: Text(
-                  ['一', '二', '三', '四', '五', '六', '日'][i],
+                  labels[i],
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
@@ -507,32 +529,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   ];
 
   Widget _buildToolsGrid() {
-    return Row(
-      children: [
-        Expanded(
-          child: _toolCard(
-            icon: Icons.bookmark_rounded,
-            iconColor: _blue,
-            iconBg: const Color(0xFFE8EEFD),
-            count: _wordbookCount == 0 ? 128 : _wordbookCount,
-            title: '生词本',
-            subtitle: '收藏的生词',
-            onTap: () => context.push('/wordbook'),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _toolCard(
-            icon: Icons.download_rounded,
-            iconColor: const Color(0xFF7C6CF5),
-            iconBg: const Color(0xFFEDEAFB),
-            count: 3,
-            title: '离线词库',
-            subtitle: '本地词库管理',
-            onTap: () => context.push('/offline-words'),
-          ),
-        ),
-      ],
+    return _toolCard(
+      icon: Icons.bookmark_rounded,
+      iconColor: _blue,
+      iconBg: const Color(0xFFE8EEFD),
+      count: _wordbookCount == 0 ? 128 : _wordbookCount,
+      title: '生词本',
+      subtitle: '收藏的生词，随时回顾重点单词',
+      onTap: () => context.push('/wordbook'),
     );
   }
 
@@ -557,44 +561,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(18),
             boxShadow: _cardShadow,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: iconBg,
-                      borderRadius: BorderRadius.circular(10),
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: iconColor, size: 28),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: _navy,
+                      ),
                     ),
-                    child: Icon(icon, color: iconColor, size: 20),
-                  ),
-                  const SizedBox(width: 8),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF8E9297),
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
                   Text(
                     '$count',
                     style: const TextStyle(
-                      fontSize: 22,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: _navy,
                     ),
                   ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    '个单词',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF8E9297),
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 10),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: _navy,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF8E9297)),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: Color(0xFFC1C7D0),
+                size: 22,
               ),
             ],
           ),
@@ -620,7 +649,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final todayStudy = _stats?.todayStudy ?? 35;
     final todayReview = _stats?.todayReview ?? 80;
     final totalLearned = _stats?.totalLearned ?? 1245;
-    final todayTime = (_stats?.totalTime ?? 42) % 1440;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -629,54 +657,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: _cardShadow,
       ),
-      child: Column(
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: _dataCell(
-                  Icons.menu_book_rounded,
-                  '$todayStudy ↑',
-                  '今日学习',
-                  const Color(0xFFE8EEFD),
-                  _blue,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _dataCell(
-                  Icons.autorenew_rounded,
-                  '$todayReview ↑',
-                  '今日复习',
-                  const Color(0xFFE8F8EC),
-                  const Color(0xFF66CC77),
-                ),
-              ),
-            ],
+          Expanded(
+            child: _dataCell(
+              Icons.menu_book_rounded,
+              '$todayStudy ↑',
+              '今日学习',
+              const Color(0xFFE8EEFD),
+              _blue,
+            ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _dataCell(
-                  Icons.track_changes_rounded,
-                  '$totalLearned 词',
-                  '累计学习',
-                  const Color(0xFFFFF2E6),
-                  const Color(0xFFFF9F43),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _dataCell(
-                  Icons.schedule_rounded,
-                  '${todayTime ~/ 60} 分钟',
-                  '今日时长',
-                  const Color(0xFFE8EEFD),
-                  _blue,
-                ),
-              ),
-            ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: _dataCell(
+              Icons.autorenew_rounded,
+              '$todayReview ↑',
+              '今日复习',
+              const Color(0xFFE8F8EC),
+              const Color(0xFF66CC77),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _dataCell(
+              Icons.track_changes_rounded,
+              '$totalLearned 词',
+              '累计学习',
+              const Color(0xFFFFF2E6),
+              const Color(0xFFFF9F43),
+            ),
           ),
         ],
       ),

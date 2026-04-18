@@ -39,7 +39,7 @@ public class StudyServiceImpl implements StudyService {
             throw new BusinessException(404, "用户不存在");
         }
         int todayStudy = userWordMapper.countTodayCompleted(userId);
-        int todayReview = userWordMapper.countTodayReviewWords(userId);
+        int todayReview = userWordMapper.countPendingReviewWords(userId);
         int totalWords = userWordMapper.countLearnedWords(userId);
         int masteredWords = userWordMapper.countMasteredWords(userId);
         int wordbookWords = userWordMapper.countWordbook(userId);

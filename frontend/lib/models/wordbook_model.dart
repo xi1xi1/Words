@@ -65,33 +65,96 @@ class WordbookWord {
   }
 }
 
-class AIContentResponse {
-  final List<String> examples;
-  final String aiExample;
-  final String word;
+class MemoryHintBlock {
+  final String title;
+  final String content;
+  final String explanation;
 
-  AIContentResponse({
-    required this.examples,
-    required this.aiExample,
-    required this.word,
+  const MemoryHintBlock({
+    required this.title,
+    required this.content,
+    required this.explanation,
   });
 
-  factory AIContentResponse.fromJson(Map<String, dynamic> json) {
-    final data = json['data'] as Map<String, dynamic>? ?? {};
-    return AIContentResponse(
-      examples:
-          (data['examples'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
-      aiExample: data['aiExample']?.toString() ?? '',
-      word: data['word']?.toString() ?? '',
+  bool get isNotEmpty =>
+      title.trim().isNotEmpty ||
+      content.trim().isNotEmpty ||
+      explanation.trim().isNotEmpty;
+
+  factory MemoryHintBlock.fromJson(Map<String, dynamic> json) {
+    return MemoryHintBlock(
+      title: json['title']?.toString() ?? '',
+      content: json['content']?.toString() ?? '',
+      explanation: json['explanation']?.toString() ?? '',
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'data': {'examples': examples, 'aiExample': aiExample, 'word': word},
+      'title': title,
+      'content': content,
+      'explanation': explanation,
+    };
+  }
+}
+
+class AIContentResponse {
+  final String word;
+  final String meaning;
+  final MemoryHintBlock? homophonic;
+  final MemoryHintBlock? morpheme;
+  final MemoryHintBlock? story;
+  final String summary;
+  final String notes;
+
+  const AIContentResponse({
+    required this.word,
+    required this.meaning,
+    required this.homophonic,
+    required this.morpheme,
+    required this.story,
+    required this.summary,
+    required this.notes,
+  });
+
+  bool get hasContent =>
+      (homophonic?.isNotEmpty ?? false) ||
+      (morpheme?.isNotEmpty ?? false) ||
+      (story?.isNotEmpty ?? false) ||
+      summary.trim().isNotEmpty ||
+      notes.trim().isNotEmpty;
+
+  factory AIContentResponse.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] as Map<String, dynamic>? ?? {};
+
+    MemoryHintBlock? parseBlock(dynamic value) {
+      if (value is! Map<String, dynamic>) return null;
+      final block = MemoryHintBlock.fromJson(value);
+      return block.isNotEmpty ? block : null;
+    }
+
+    return AIContentResponse(
+      word: data['word']?.toString() ?? '',
+      meaning: data['meaning']?.toString() ?? '',
+      homophonic: parseBlock(data['homophonic']),
+      morpheme: parseBlock(data['morpheme']),
+      story: parseBlock(data['story']),
+      summary: data['summary']?.toString() ?? '',
+      notes: data['notes']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'data': {
+        'word': word,
+        'meaning': meaning,
+        'homophonic': homophonic?.toJson(),
+        'morpheme': morpheme?.toJson(),
+        'story': story?.toJson(),
+        'summary': summary,
+        'notes': notes,
+      },
     };
   }
 }

@@ -8,6 +8,16 @@ class AppTheme {
     scaffoldBackgroundColor: AppColors.backgroundLight,
     cardColor: AppColors.cardLight,
     dividerColor: AppColors.dividerLight,
+    colorScheme: const ColorScheme.light(
+      primary: AppColors.primaryLight,
+      secondary: AppColors.secondaryLight,
+      surface: AppColors.cardLight,
+      background: AppColors.backgroundLight,
+      onPrimary: Colors.white,
+      onSurface: AppColors.textPrimaryLight,
+      onBackground: AppColors.textPrimaryLight,
+      outline: AppColors.dividerLight,
+    ),
 
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.backgroundLight,
@@ -15,6 +25,13 @@ class AppTheme {
       elevation: 0,
       centerTitle: true,
       titleTextStyle: AppTextStyles.title2,
+    ),
+
+    cardTheme: CardThemeData(
+      color: AppColors.cardLight,
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      margin: EdgeInsets.zero,
     ),
 
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
@@ -33,14 +50,6 @@ class AppTheme {
       bodyLarge: AppTextStyles.body,
       bodyMedium: AppTextStyles.caption,
     ),
-
-    colorScheme: const ColorScheme.light(
-      primary: AppColors.primaryLight,
-      secondary: AppColors.secondaryLight,
-      surface: AppColors.cardLight,
-      background: AppColors.backgroundLight,
-      onPrimary: Colors.white,
-    ),
   );
 
   static ThemeData darkTheme = ThemeData(
@@ -49,6 +58,16 @@ class AppTheme {
     scaffoldBackgroundColor: AppColors.backgroundDark,
     cardColor: AppColors.cardDark,
     dividerColor: AppColors.dividerDark,
+    colorScheme: const ColorScheme.dark(
+      primary: AppColors.primaryDark,
+      secondary: AppColors.secondaryDark,
+      surface: AppColors.cardDark,
+      background: AppColors.backgroundDark,
+      onPrimary: Colors.white,
+      onSurface: AppColors.textPrimaryDark,
+      onBackground: AppColors.textPrimaryDark,
+      outline: AppColors.dividerDark,
+    ),
 
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.backgroundDark,
@@ -56,6 +75,13 @@ class AppTheme {
       elevation: 0,
       centerTitle: true,
       titleTextStyle: AppTextStyles.title2,
+    ),
+
+    cardTheme: CardThemeData(
+      color: AppColors.cardDark,
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      margin: EdgeInsets.zero,
     ),
 
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
@@ -71,14 +97,6 @@ class AppTheme {
       displayMedium: AppTextStyles.title2,
       bodyLarge: AppTextStyles.body,
       bodyMedium: AppTextStyles.caption,
-    ),
-
-    colorScheme: const ColorScheme.dark(
-      primary: AppColors.primaryDark,
-      secondary: AppColors.secondaryDark,
-      surface: AppColors.cardDark,
-      background: AppColors.backgroundDark,
-      onPrimary: Colors.white,
     ),
   );
 }

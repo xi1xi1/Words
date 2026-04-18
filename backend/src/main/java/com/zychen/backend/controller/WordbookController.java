@@ -1,13 +1,12 @@
 package com.zychen.backend.controller;
 
+import com.zychen.backend.dto.response.AIMemoryContent;
 import com.zychen.backend.dto.response.ApiResponse;
 import com.zychen.backend.dto.response.WordbookPage;
 import com.zychen.backend.service.WordbookService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @Slf4j
 @RestController
@@ -63,11 +62,11 @@ public class WordbookController {
      * GET /api/wordbook/ai/{wordId}
      */
     @GetMapping("/ai/{wordId}")
-    public ApiResponse<Map<String, Object>> getAIContent(
+    public ApiResponse<AIMemoryContent> getAIContent(
             @RequestAttribute("userId") Long userId,
             @PathVariable Long wordId) {
         log.info("GET /api/wordbook/ai/{} userId={}", wordId, userId);
-        Map<String, Object> data = wordbookService.getAIContent(userId, wordId);
+        AIMemoryContent data = wordbookService.getAIContent(userId, wordId);
         return ApiResponse.success(data);
     }
 }
