@@ -1,5 +1,7 @@
 package com.zychen.backend.service.impl;
 
+import com.zychen.backend.dto.response.AIMemoryContent;
+import com.zychen.backend.dto.response.MemoryHintBlock;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -52,22 +54,44 @@ public class AIServiceImpl implements AIService {
 
     @Override
     public String generateExample(String word, String meaning) {
+        JsonNode root = callArk(buildExampleSystemPrompt(), buildPrompt(word, meaning), 128);
+        if (root == null) {
+            return null;
+        }
+        return extractContent(root.toString());
+    }
+
+    @Override
+    public AIMemoryContent generateMemoryContent(String word, String meaning) {
+        // 512 容易让模型输出 JSON 被截断，导致解析失败；适当提高上限并要求更短的字段。
+        JsonNode root = callArk(buildMemorySystemPrompt(), buildMemoryUserPrompt(word, meaning), 768);
+        if (root == null) {
+            return null;
+        }
+        String content = extractContent(root.toString());
+        if (!StringUtils.hasText(content)) {
+            return null;
+        }
+        String normalized = normalizeLikelyJson(content);
+        String repaired = repairCommonJsonIssues(normalized);
+        return parseMemoryContent(repaired, word, meaning);
+    }
+
+    private JsonNode callArk(String systemPrompt, String userPrompt, int maxTokens) {
         if (!StringUtils.hasText(arkApiKey) || !StringUtils.hasText(endpointId)) {
             log.warn("ark.api-key 或 ark.endpoint-id 未配置");
             return null;
         }
-        String prompt = buildPrompt(word, meaning);
         ObjectNode body = objectMapper.createObjectNode();
         body.put("model", endpointId);
         ArrayNode messages = body.putArray("messages");
         ObjectNode sys = messages.addObject();
         sys.put("role", "system");
-        sys.put("content",
-                "You help English learners. Reply with one natural English example sentence only, no translation, no quotes, no numbering.");
+        sys.put("content", systemPrompt);
         ObjectNode userMsg = messages.addObject();
         userMsg.put("role", "user");
-        userMsg.put("content", prompt);
-        body.put("max_tokens", 128);
+        userMsg.put("content", userPrompt);
+        body.put("max_tokens", maxTokens);
 
         String json;
         try {
@@ -89,9 +113,12 @@ public class AIServiceImpl implements AIService {
                 log.warn("方舟调用失败: status={}, body={}", response.code(), truncate(respBody, 500));
                 return null;
             }
-            return extractContent(respBody);
+            return objectMapper.readTree(respBody);
         } catch (IOException e) {
             log.error("方舟 HTTP 请求异常", e);
+            return null;
+        } catch (Exception e) {
+            log.warn("方舟响应JSON解析失败");
             return null;
         }
     }
@@ -123,6 +150,115 @@ public class AIServiceImpl implements AIService {
         String m = meaning == null ? "" : meaning.trim();
         return "English word: \"" + word + "\". Meaning (may be JSON): " + m
                 + ". Write ONE short natural English sentence using this word. Output only the sentence.";
+    }
+
+    private static String buildExampleSystemPrompt() {
+        return "You help English learners. Reply with one natural English example sentence only, no translation, no quotes, no numbering.";
+    }
+
+    private static String buildMemorySystemPrompt() {
+        return "You are an English memory coach for Chinese students. "
+                + "Return ONE strict JSON object only. No markdown, no ``` fences, no extra text. "
+                + "Keys must be exactly: homophonic, morpheme, story, summary, notes. "
+                + "homophonic/morpheme/story is either null or an object {\"title\",\"content\",\"explanation\"}. "
+                + "Keep each string short (<=40 Chinese characters). "
+                + "summary must be a non-empty Chinese sentence.";
+    }
+
+    private static String buildMemoryUserPrompt(String word, String meaning) {
+        String m = meaning == null ? "" : meaning.trim();
+        return "Word: " + word + "\n"
+                + "Meaning: " + m + "\n"
+                + "Generate Chinese mnemonic hints. "
+                + "If some hint type is unsuitable, set it to null. "
+                + "Output JSON only.";
+    }
+
+    private AIMemoryContent parseMemoryContent(String jsonContent, String word, String meaning) {
+        try {
+            JsonNode node = objectMapper.readTree(jsonContent);
+            AIMemoryContent out = new AIMemoryContent();
+            out.setWord(word);
+            out.setMeaning(meaning == null ? "" : meaning);
+            out.setHomophonic(parseHint(node.path("homophonic")));
+            out.setMorpheme(parseHint(node.path("morpheme")));
+            out.setStory(parseHint(node.path("story")));
+            out.setSummary(node.path("summary").asText(""));
+            out.setNotes(node.path("notes").asText(""));
+            if (!StringUtils.hasText(out.getSummary())) {
+                out.setSummary(word + "：" + out.getMeaning());
+            }
+            return out;
+        } catch (Exception e) {
+            log.warn("解析联想记忆JSON失败: {}", truncate(jsonContent, 300), e);
+            return null;
+        }
+    }
+
+    /**
+     * 模型有时会返回 ```json ... ``` 或在 JSON 前后加说明文字。
+     * 这里尽量把内容规范化为一个可解析的 JSON 对象字符串。
+     */
+    private static String normalizeLikelyJson(String content) {
+        if (content == null) {
+            return null;
+        }
+        String s = content.trim();
+        if (s.isEmpty()) {
+            return s;
+        }
+
+        // Strip markdown code fences if present
+        // e.g. ```json\n{...}\n```
+        if (s.startsWith("```")) {
+            int firstNewline = s.indexOf('\n');
+            if (firstNewline >= 0) {
+                s = s.substring(firstNewline + 1).trim();
+            }
+            if (s.endsWith("```")) {
+                s = s.substring(0, s.length() - 3).trim();
+            }
+        }
+
+        // If there's extra text, extract the largest {...} block
+        int start = s.indexOf('{');
+        int end = s.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+            return s.substring(start, end + 1).trim();
+        }
+        return s;
+    }
+
+    /**
+     * 修复常见 JSON 小问题（不保证覆盖所有情况）：
+     * - 末尾多余逗号：{ "a": 1, } / [1,2,]
+     */
+    private static String repairCommonJsonIssues(String content) {
+        if (content == null) {
+            return null;
+        }
+        String s = content.trim();
+        if (s.isEmpty()) {
+            return s;
+        }
+        // remove trailing commas before } or ]
+        // e.g. {"a":1,} -> {"a":1}
+        //      [1,2,] -> [1,2]
+        s = s.replaceAll(",\\s*([}\\]])", "$1");
+        return s;
+    }
+
+    private MemoryHintBlock parseHint(JsonNode node) {
+        if (node == null || node.isNull() || !node.isObject()) {
+            return null;
+        }
+        String title = node.path("title").asText("");
+        String content = node.path("content").asText("");
+        String explanation = node.path("explanation").asText("");
+        if (!StringUtils.hasText(title) || !StringUtils.hasText(content) || !StringUtils.hasText(explanation)) {
+            return null;
+        }
+        return new MemoryHintBlock(title, content, explanation);
     }
 
     private String extractContent(String respBody) {

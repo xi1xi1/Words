@@ -38,7 +38,7 @@ public class WordServiceImpl implements WordService {
     private final StudyRecordMapper studyRecordMapper;
 
     private static final int NEW_WORDS_PER_DAY = 10;
-    private static final int REVIEW_WORDS_PER_DAY = 20;
+    private static final int REVIEW_WORDS_PER_DAY = 10;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
@@ -58,21 +58,34 @@ public class WordServiceImpl implements WordService {
             todayQueue = new ArrayList<>();
         }
 
-        // 3) 按「是否经历过学习」拆分为新词/复习词：
-        // review_count = 0 视为新词批次；review_count > 0 视为复习
+        // 3) 新词按当前批次拆分；复习按“10词一组”锁定：
+        // - 若今天已有进行中的复习错题，则仅返回这组未完成复习词
+        // - 否则发放下一组复习词（最多10个）
         List<Word> newWords = todayQueue.stream()
                 .filter(uw -> uw.getReviewCount() == null || uw.getReviewCount() == 0)
                 .map(uw -> convertToWord(uw.getWordId()))
                 .collect(Collectors.toList());
-        List<Word> reviewWords = todayQueue.stream()
-                .filter(uw -> uw.getReviewCount() != null && uw.getReviewCount() > 0)
+
+        List<UserWord> inProgressReviewWords = userWordMapper.getTodayInProgressReviewWords(userId, REVIEW_WORDS_PER_DAY);
+        List<UserWord> reviewQueue = (inProgressReviewWords != null && !inProgressReviewWords.isEmpty())
+                ? inProgressReviewWords
+                : userWordMapper.getReviewWords(userId, REVIEW_WORDS_PER_DAY);
+        if (reviewQueue == null) {
+            reviewQueue = new ArrayList<>();
+        }
+        List<Word> reviewWords = reviewQueue.stream()
                 .map(uw -> convertToWord(uw.getWordId()))
                 .collect(Collectors.toList());
 
         DailyWordsResponse response = new DailyWordsResponse();
         response.setNewWords(newWords);
         response.setReviewWords(reviewWords);
-        response.setTotal(todayQueue.size());
+        response.setTotal(newWords.size() + reviewWords.size());
+        // 「待学习」= 词库未分配新词 + 已分配但未掌握的新词（用户还没学会都算待学习）
+        response.setLearnableWordCount(
+                wordMapper.countNewWords(userId) + userWordMapper.countPendingNewWords(userId)
+        );
+        response.setReviewableWordCount(userWordMapper.countReviewableWords(userId));
 
         log.info("获取今日单词成功: userId={}, 队列总数={}, 新词数={}, 复习词数={}",
                 userId, todayQueue.size(), newWords.size(), reviewWords.size());
@@ -95,15 +108,15 @@ public class WordServiceImpl implements WordService {
             isReviewWord = isReviewQueueUserWord(userWord);
         }
 
-        // 2. 验证阶段匹配
-        if (userWord.getStudyStage() != request.getStage()) {
+        // 2. 验证阶段匹配（复习模式兼容前端单阶段：固定传 stage=3）
+        if (!isReviewWord && userWord.getStudyStage() != request.getStage()) {
             log.warn("阶段不匹配: 期望 stage={}, 实际 stage={}",
                     userWord.getStudyStage(), request.getStage());
             throw new BusinessException(400, "学习阶段不匹配，请刷新页面重试");
         }
 
         // 3. 处理学习结果
-        processLearnResult(userWord, request);
+        processLearnResult(userWord, request, isReviewWord);
 
         // 3.1 聚合写入当日 study_record（uk_user_date）
         upsertDailyStudyRecord(userId, isReviewWord, Boolean.TRUE.equals(request.getIsCorrect()));
@@ -297,9 +310,48 @@ public class WordServiceImpl implements WordService {
     /**
      * 处理学习结果（渐进式学习核心逻辑）
      */
-    private void processLearnResult(UserWord userWord, LearnRequest request) {
+    private void processLearnResult(UserWord userWord, LearnRequest request, boolean isReviewWord) {
         int currentStage = userWord.getStudyStage();
         boolean isCorrect = request.getIsCorrect();
+
+        // 复习词：前端是单阶段提交流程（review_screen 固定 stage=3）
+        // 无论答对答错，本轮复习都应结束，避免当天重复刷到同一单词。
+        if (isReviewWord) {
+            int currentReviewCount = userWord.getReviewCount() == null ? 0 : userWord.getReviewCount();
+
+            userWord.setLastStudyTime(LocalDateTime.now());
+            userWord.setStudyStage(1);
+            userWord.setMemoryScore(
+                    calculateMemoryScore(userWord.getMemoryScore(), isCorrect, 3)
+            );
+
+            if (isCorrect) {
+                int nextReviewCount = currentReviewCount + 1;
+                userWord.setTodayMastered(1);
+                userWord.setStatus(1);
+                userWord.setReviewCount(nextReviewCount);
+                userWord.setNextReview(calculateNextReview(nextReviewCount, true));
+            } else {
+                // 复习答错：当场继续练，直到答对才出队
+                userWord.setTodayMastered(0);
+                userWord.setStatus(0);
+                userWord.setReviewCount(currentReviewCount);
+                userWord.setNextReview(LocalDateTime.now());
+            }
+
+            userWordMapper.updateAfterLearn(
+                    userWord.getUserId(),
+                    userWord.getWordId(),
+                    userWord.getStatus(),
+                    userWord.getStudyStage(),
+                    userWord.getTodayMastered(),
+                    userWord.getReviewCount(),
+                    userWord.getNextReview(),
+                    userWord.getMemoryScore(),
+                    userWord.getLastStudyTime()
+            );
+            return;
+        }
 
         if (isCorrect) {
             // 答对：进入下一阶段
@@ -321,10 +373,10 @@ public class WordServiceImpl implements WordService {
                 userWord.setMemoryScore(
                         calculateMemoryScore(userWord.getMemoryScore(), true, 3)
                 );
-                userWord.setNextReview(
-                        calculateNextReview(userWord.getReviewCount() + 1, true)
-                );
-                userWord.setReviewCount(userWord.getReviewCount() + 1);
+                int currentReviewCount = userWord.getReviewCount() == null ? 0 : userWord.getReviewCount();
+                int nextReviewCount = currentReviewCount + 1;
+                userWord.setReviewCount(nextReviewCount);
+                userWord.setNextReview(calculateNextReview(nextReviewCount, true));
                 log.debug("阶段3答对，今日掌握该单词");
             }
         } else {
@@ -352,6 +404,7 @@ public class WordServiceImpl implements WordService {
                 userWord.getStatus(),
                 userWord.getStudyStage(),
                 userWord.getTodayMastered(),
+                userWord.getReviewCount(),
                 userWord.getNextReview(),
                 userWord.getMemoryScore(),
                 userWord.getLastStudyTime()
