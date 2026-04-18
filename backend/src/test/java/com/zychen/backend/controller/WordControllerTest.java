@@ -12,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -47,7 +48,9 @@ public class WordControllerTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.message").value("success"))
                 .andExpect(jsonPath("$.data.newWords").isArray())
-                .andExpect(jsonPath("$.data.reviewWords").isArray());
+                .andExpect(jsonPath("$.data.reviewWords").isArray())
+                .andExpect(jsonPath("$.data.learnableWordCount", greaterThanOrEqualTo(0)))
+                .andExpect(jsonPath("$.data.reviewableWordCount", greaterThanOrEqualTo(0)));
     }
 
     /**

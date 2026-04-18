@@ -1,7 +1,10 @@
 package com.zychen.backend.controller;
 
 import com.zychen.backend.config.JwtUtil;
+import com.zychen.backend.dto.response.AIMemoryContent;
+import com.zychen.backend.dto.response.MemoryHintBlock;
 import com.zychen.backend.service.AIService;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -36,6 +40,15 @@ public class WordbookControllerTest {
     void setUp() {
         bearerToken = "Bearer " + jwtUtil.generateToken(1L, "jwt_challenge_user");
         doNothing().when(aiService).generateAndPersistExample(anyLong(), anyString(), nullable(String.class));
+        AIMemoryContent memoryContent = new AIMemoryContent();
+        memoryContent.setWord("chance");
+        memoryContent.setMeaning("机会");
+        memoryContent.setSummary("chance = 抓住机会");
+        memoryContent.setNotes("拆词联想为辅助记忆");
+        memoryContent.setHomophonic(new MemoryHintBlock("谐音记忆", "抢死", "抓住机会不能等"));
+        memoryContent.setMorpheme(null);
+        memoryContent.setStory(new MemoryHintBlock("故事记忆", "他抓住机会逆袭", "场景化帮助记忆"));
+        when(aiService.generateMemoryContent(anyString(), anyString())).thenReturn(memoryContent);
     }
 
     /**
@@ -116,8 +129,11 @@ public class WordbookControllerTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.message").value("success"))
                 .andExpect(jsonPath("$.data.word").exists())
-                .andExpect(jsonPath("$.data.examples").isArray())
-                .andExpect(jsonPath("$.data.dialogues").isArray());
+                .andExpect(jsonPath("$.data.meaning").isString())
+                .andExpect(jsonPath("$.data.summary").isString())
+                .andExpect(jsonPath("$.data.homophonic.title").isString())
+                .andExpect(jsonPath("$.data.story.title").isString())
+                .andExpect(jsonPath("$.data.morpheme").value(Matchers.nullValue()));
     }
 
     @Test
