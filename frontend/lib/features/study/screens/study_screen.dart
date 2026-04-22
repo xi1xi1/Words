@@ -6,14 +6,19 @@ import '../../../models/word_model.dart';
 import '../../../core/network/api_exception.dart';
 
 class StudyScreen extends StatefulWidget {
-  const StudyScreen({super.key});
+  final WordService? wordService;
+
+  const StudyScreen({
+    super.key,
+    this.wordService,
+  });
 
   @override
   State<StudyScreen> createState() => _StudyScreenState();
 }
 
 class _StudyScreenState extends State<StudyScreen> {
-  final WordService _wordService = WordService();
+  late final WordService _wordService;
 
   static const _headerBlue = Color(0xFF5B86F8);
   static const _pageBg = Color(0xFFF7F8FA);
@@ -47,6 +52,7 @@ class _StudyScreenState extends State<StudyScreen> {
   @override
   void initState() {
     super.initState();
+    _wordService = widget.wordService ?? WordService();
     _loadAndStartStudy();
   }
 
@@ -144,8 +150,8 @@ class _StudyScreenState extends State<StudyScreen> {
       final result = await _wordService.getDailyWords();
       if (!mounted) return;
 
-      final allWords = [...result.newWords, ...result.reviewWords];
-      if (allWords.isEmpty) {
+      final learningWords = result.newWords;
+      if (learningWords.isEmpty) {
         setState(() {
           _currentWord = null;
           _isLoading = false;
@@ -153,9 +159,9 @@ class _StudyScreenState extends State<StudyScreen> {
         return;
       }
 
-      allWords.shuffle();
-      final first = allWords.first;
-      final batchTotal = result.maxNewWords > 0 ? result.maxNewWords : _batchSize;
+      final words = [...learningWords]..shuffle();
+      final first = words.first;
+      final batchTotal = learningWords.length;
 
       setState(() {
         _batchTargetCount = batchTotal;
@@ -184,16 +190,16 @@ class _StudyScreenState extends State<StudyScreen> {
       final result = await _wordService.getDailyWords();
       if (!mounted) return;
 
-      final allWords = [...result.newWords, ...result.reviewWords];
+      final learningWords = result.newWords;
 
-      if (allWords.isEmpty) {
+      if (learningWords.isEmpty) {
         setState(() => _isSubmitting = false);
         _showBatchSettlementDialog(completed: _batchCompletedCount >= _batchTargetCount);
         return;
       }
 
-      allWords.shuffle();
-      final next = allWords.first;
+      final words = [...learningWords]..shuffle();
+      final next = words.first;
 
       setState(() {
         _currentWord = next;
