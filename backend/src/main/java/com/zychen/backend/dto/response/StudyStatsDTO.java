@@ -16,6 +16,7 @@ public class StudyStatsDTO {
     private Integer todayStudy;
     private Integer todayReview;
     private Integer totalWords;
+    private Integer totalVocabulary;
     private Integer masteredWords;
     private Integer wordbookWords;
     private Integer dueReviewCount;

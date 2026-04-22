@@ -409,6 +409,9 @@ components:
           type: integer
         totalWords:
           type: integer
+        totalVocabulary:
+          type: integer
+          description: 当前词库总单词数（word表总量）
         masteredWords:
           type: integer
         wordbookWords:

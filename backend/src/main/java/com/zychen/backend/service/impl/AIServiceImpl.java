@@ -37,13 +37,13 @@ public class AIServiceImpl implements AIService {
     private final WordMapper wordMapper;
     private final ObjectMapper objectMapper;
 
-    @Value("${ark.base-url}")
+    @Value("${ark.base-url:https://ark.cn-beijing.volces.com/api/v3/chat/completions}")
     private String arkBaseUrl;
 
-    @Value("${ark.api-key}")
+    @Value("${ark.api-key:}")
     private String arkApiKey;
 
-    @Value("${ark.endpoint-id}")
+    @Value("${ark.endpoint-id:}")
     private String endpointId;
 
     private final OkHttpClient httpClient = new OkHttpClient.Builder()

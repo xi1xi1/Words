@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'app.dart';
+import 'core/network/api_client.dart';
 import 'core/providers/settings_provider.dart';
 import 'core/providers/user_provider.dart';
 import 'core/providers/wordbook_provider.dart';
@@ -29,6 +30,18 @@ class _MyAppState extends State<MyApp> {
     _userProvider = UserProvider();
     _wordbookProvider = WordbookProvider()..load();
     _router = AppRouter.createRouter(_userProvider);
+
+    ApiClient.onUnauthorized = () async {
+      await _userProvider.clearAuth();
+    };
+  }
+
+  @override
+  void dispose() {
+    if (ApiClient.onUnauthorized != null) {
+      ApiClient.onUnauthorized = null;
+    }
+    super.dispose();
   }
 
   @override
