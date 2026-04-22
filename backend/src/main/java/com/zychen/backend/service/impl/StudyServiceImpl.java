@@ -9,6 +9,7 @@ import com.zychen.backend.entity.User;
 import com.zychen.backend.mapper.StudyRecordMapper;
 import com.zychen.backend.mapper.UserMapper;
 import com.zychen.backend.mapper.UserWordMapper;
+import com.zychen.backend.mapper.WordMapper;
 import com.zychen.backend.service.StudyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ public class StudyServiceImpl implements StudyService {
     private final UserMapper userMapper;
     private final UserWordMapper userWordMapper;
     private final StudyRecordMapper studyRecordMapper;
+    private final WordMapper wordMapper;
 
     @Override
     public StudyStatsDTO getStats(Long userId) {
@@ -41,6 +43,7 @@ public class StudyServiceImpl implements StudyService {
         int todayStudy = userWordMapper.countTodayCompleted(userId);
         int todayReview = userWordMapper.countPendingReviewWords(userId);
         int totalWords = userWordMapper.countLearnedWords(userId);
+        int totalVocabulary = wordMapper.countAllWords();
         int masteredWords = userWordMapper.countMasteredWords(userId);
         int wordbookWords = userWordMapper.countWordbook(userId);
         int dueReviewCount = userWordMapper.countDueReview(userId);
@@ -49,6 +52,7 @@ public class StudyServiceImpl implements StudyService {
                 .todayStudy(todayStudy)
                 .todayReview(todayReview)
                 .totalWords(totalWords)
+                .totalVocabulary(totalVocabulary)
                 .masteredWords(masteredWords)
                 .wordbookWords(wordbookWords)
                 .dueReviewCount(dueReviewCount)

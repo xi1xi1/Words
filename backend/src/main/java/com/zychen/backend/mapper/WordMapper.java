@@ -39,6 +39,12 @@ public interface WordMapper {
     int countByKeyword(String keyword);
 
     /**
+     * 统计词库总单词数
+     */
+    @Select("SELECT COUNT(*) FROM word")
+    int countAllWords();
+
+    /**
      * 随机获取指定数量的单词
      */
     @Select("SELECT id, word, meaning, phonetic, example, create_time " +

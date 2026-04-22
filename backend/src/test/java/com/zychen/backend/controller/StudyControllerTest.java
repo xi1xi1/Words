@@ -43,6 +43,7 @@ class StudyControllerTest {
                 .andExpect(jsonPath("$.data.todayStudy").exists())
                 .andExpect(jsonPath("$.data.todayReview").exists())
                 .andExpect(jsonPath("$.data.totalWords").exists())
+                .andExpect(jsonPath("$.data.totalVocabulary").exists())
                 .andExpect(jsonPath("$.data.masteredWords").exists())
                 .andExpect(jsonPath("$.data.wordbookWords").exists())
                 .andExpect(jsonPath("$.data.dueReviewCount").exists())
