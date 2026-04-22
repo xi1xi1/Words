@@ -140,5 +140,19 @@ class AuthServiceImplTest {
         assertTrue(authService.validateToken("ok"));
         verify(jwtUtil).validateToken("ok");
     }
+
+    @Test
+    void validateToken_notBlacklisted_jwtInvalid_returnsFalse() {
+        when(jwtUtil.validateToken("expired")).thenReturn(false);
+        assertFalse(authService.validateToken("expired"));
+        verify(jwtUtil).validateToken("expired");
+    }
+
+    @Test
+    void getUserIdFromToken_delegatesToJwt() {
+        when(jwtUtil.getUserIdFromToken("tok")).thenReturn(88L);
+        assertEquals(88L, authService.getUserIdFromToken("tok"));
+        verify(jwtUtil).getUserIdFromToken("tok");
+    }
 }
 
