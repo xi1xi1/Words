@@ -45,9 +45,19 @@ jobs:
         run: |
           if [ -f backend/mvnw ]; then
             chmod +x backend/mvnw
-            ./backend/mvnw -q -f backend/pom.xml test
+            ./backend/mvnw -f backend/pom.xml -e \
+              -Dspring.test.context.failure.threshold=999 \
+              -Dspring.datasource.url="jdbc:mysql://127.0.0.1:3306/beileme?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci" \
+              -Dspring.datasource.username=root \
+              -Dspring.datasource.password=123456 \
+              test
           else
-            mvn -q -f backend/pom.xml test
+            mvn -f backend/pom.xml -e \
+              -Dspring.test.context.failure.threshold=999 \
+              -Dspring.datasource.url="jdbc:mysql://127.0.0.1:3306/beileme?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci" \
+              -Dspring.datasource.username=root \
+              -Dspring.datasource.password=123456 \
+              test
           fi
 
       - name: Print test reports on failure
