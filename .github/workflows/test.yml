@@ -22,8 +22,12 @@ jobs:
 
       - name: Run backend tests (JaCoCo)
         run: |
-          chmod +x backend/mvnw
-          ./backend/mvnw -q -f backend/pom.xml test
+          if [ -f backend/mvnw ]; then
+            chmod +x backend/mvnw
+            ./backend/mvnw -q -f backend/pom.xml test
+          else
+            mvn -q -f backend/pom.xml test
+          fi
 
       - name: Upload backend coverage to Codecov
         uses: codecov/codecov-action@v4

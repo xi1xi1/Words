@@ -101,6 +101,11 @@ out/
 **/mvnw
 **/mvnw.cmd
 **/.mvn/
+!backend/mvnw
+!backend/mvnw.cmd
+!backend/.mvn/
+!backend/.mvn/wrapper/
+!backend/.mvn/wrapper/maven-wrapper.properties
 
 # 依赖目录
 **/node_modules/
