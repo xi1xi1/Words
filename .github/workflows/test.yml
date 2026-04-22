@@ -21,8 +21,9 @@ jobs:
           cache: maven
 
       - name: Run backend tests (JaCoCo)
-        working-directory: backend
-        run: ./mvnw -q test
+        run: |
+          chmod +x backend/mvnw
+          ./backend/mvnw -q -f backend/pom.xml test
 
       - name: Upload backend coverage to Codecov
         uses: codecov/codecov-action@v4
