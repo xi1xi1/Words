@@ -98,6 +98,51 @@ class AIServiceImplTest {
     }
 
     @Test
+    void generateAndPersistExample_duplicateSentence_notAppendedTwice() {
+        doReturn("He abandoned his plan.").when(aiService).generateExample(anyString(), anyString());
+
+        Word w = new Word();
+        w.setId(1L);
+        w.setExample("[\"He abandoned his plan.\"]");
+        when(wordMapper.findById(1L)).thenReturn(w);
+        when(wordMapper.updateExample(eq(1L), anyString())).thenReturn(1);
+        ReflectionTestUtils.setField(aiService, "objectMapper", new ObjectMapper());
+
+        aiService.generateAndPersistExample(1L, "abandon", "v. 放弃");
+
+        verify(wordMapper).updateExample(eq(1L), eq("[\"He abandoned his plan.\"]"));
+    }
+
+    @Test
+    void generateAndPersistExample_invalidExistingJson_resetsToSingleSentence() {
+        doReturn("Fresh sentence.").when(aiService).generateExample(anyString(), anyString());
+
+        Word w = new Word();
+        w.setId(1L);
+        w.setExample("not-json");
+        when(wordMapper.findById(1L)).thenReturn(w);
+        when(wordMapper.updateExample(eq(1L), anyString())).thenReturn(1);
+        ReflectionTestUtils.setField(aiService, "objectMapper", new ObjectMapper());
+
+        aiService.generateAndPersistExample(1L, "abandon", "v. 放弃");
+
+        verify(wordMapper).updateExample(eq(1L), eq("[\"Fresh sentence.\"]"));
+    }
+
+    @Test
+    void normalizeLikelyJson_extraText_extractsObjectRange() {
+        String raw = "Result: {\"summary\":\"ok\"} trailing";
+        String normalized = invokeNormalizeLikelyJson(raw);
+        assertEquals("{\"summary\":\"ok\"}", normalized);
+    }
+
+    @Test
+    void repairCommonJsonIssues_noTrailingComma_keepsOriginal() {
+        String src = "{\"a\":1,\"b\":[1,2]}";
+        assertEquals(src, invokeRepairCommonJsonIssues(src));
+    }
+
+    @Test
     void normalizeLikelyJson_stripsCodeFenceAndExtractsObject() {
         String raw = "```json\n{\"summary\":\"ok\",\"notes\":\"n\"}\n```";
         String normalized = invokeNormalizeLikelyJson(raw);

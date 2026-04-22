@@ -4,11 +4,15 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zychen.backend.common.BusinessException;
 import com.zychen.backend.dto.request.ChallengeSubmitRequest;
+import com.zychen.backend.dto.response.ChallengeLevelRankItem;
+import com.zychen.backend.dto.response.ChallengeRecordsPage;
 import com.zychen.backend.dto.response.ChallengeStartResponse;
 import com.zychen.backend.dto.response.ChallengeSubmitResponse;
+import com.zychen.backend.entity.BattleRecord;
 import com.zychen.backend.entity.User;
 import com.zychen.backend.entity.Word;
 import com.zychen.backend.mapper.BattleRecordMapper;
+import com.zychen.backend.mapper.LevelRankingRow;
 import com.zychen.backend.mapper.UserMapper;
 import com.zychen.backend.mapper.WordMapper;
 import org.junit.jupiter.api.Test;
@@ -139,6 +143,64 @@ class ChallengeServiceImplTest {
         assertEquals(1.0, resp.getAccuracy());
         assertEquals(100, resp.getAddedScore());
         assertEquals(1335, resp.getTotalScore());
+    }
+
+    @Test
+    void getUserHistory_levelTypeInvalid_throws400() {
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> challengeService.getUserHistory(1L, 4, 1, 10));
+        assertEquals(400, ex.getCode());
+        assertEquals("关卡等级必须为 1~3", ex.getMessage());
+    }
+
+    @Test
+    void getUserHistory_success_mapsPageAndContent() {
+        BattleRecord record = new BattleRecord();
+        record.setId(10L);
+        record.setLevelType(2);
+        record.setScore(800);
+        record.setCorrectCount(8);
+        record.setTotalCount(10);
+        record.setDuration(70);
+
+        when(battleRecordMapper.countByUser(1L, 2)).thenReturn(1);
+        when(battleRecordMapper.listByUserForPage(1L, 2, 0, 20)).thenReturn(List.of(record));
+
+        ChallengeRecordsPage page = challengeService.getUserHistory(1L, 2, 1, 20);
+
+        assertEquals(1, page.getTotal());
+        assertEquals(1, page.getPage());
+        assertEquals(20, page.getSize());
+        assertEquals(1, page.getContent().size());
+        assertEquals(10L, page.getContent().get(0).getId());
+        assertEquals("中级场", page.getContent().get(0).getLevelName());
+        assertEquals(0.8, page.getContent().get(0).getCorrectRate());
+    }
+
+    @Test
+    void getLevelRanking_defaultAndMaxLimit_usesFallbackAndMaps() {
+        LevelRankingRow row = new LevelRankingRow();
+        row.setRank(1);
+        row.setUserId(1L);
+        row.setUsername("u1");
+        row.setAvatar("a.png");
+        row.setBestScore(950);
+        when(battleRecordMapper.listLevelRanking(1, 50)).thenReturn(List.of(row));
+
+        List<ChallengeLevelRankItem> list = challengeService.getLevelRanking(1, 0);
+
+        verify(battleRecordMapper).listLevelRanking(1, 50);
+        assertEquals(1, list.size());
+        assertEquals(1, list.get(0).getRank());
+        assertEquals(950, list.get(0).getBestScore());
+    }
+
+    @Test
+    void getBestScore_invalidLevelType_throws400() {
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> challengeService.getBestScore(1L, 99));
+        assertEquals(400, ex.getCode());
+        assertEquals("关卡等级必须为 1~3", ex.getMessage());
     }
 
     private static Word word(Long id, String w) {

@@ -133,6 +133,17 @@ class StudyServiceImplTest {
     }
 
     @Test
+    void getTrend_daysWithinRange_startDateCalculated() {
+        when(studyRecordMapper.selectTrendSince(eq(1L), any(LocalDate.class))).thenReturn(List.of());
+
+        studyService.getTrend(1L, 7);
+
+        ArgumentCaptor<LocalDate> startCaptor = ArgumentCaptor.forClass(LocalDate.class);
+        verify(studyRecordMapper).selectTrendSince(eq(1L), startCaptor.capture());
+        assertEquals(LocalDate.now().minusDays(6), startCaptor.getValue());
+    }
+
+    @Test
     void getCalendar_invalidMonth_throws400() {
         BusinessException ex = assertThrows(BusinessException.class, () -> studyService.getCalendar(1L, 2026, 13));
         assertEquals(400, ex.getCode());
@@ -166,6 +177,20 @@ class StudyServiceImplTest {
         assertEquals(2026, dto.getYear());
         assertEquals(4, dto.getMonth());
         assertEquals(List.of("2026-04-01", "2026-04-02"), dto.getStudyDates());
+    }
+
+    @Test
+    void getCalendar_validMonth_passesCorrectRangeToMapper() {
+        when(studyRecordMapper.selectByMonthRange(eq(1L), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of());
+
+        studyService.getCalendar(1L, 2026, 2);
+
+        ArgumentCaptor<LocalDate> startCaptor = ArgumentCaptor.forClass(LocalDate.class);
+        ArgumentCaptor<LocalDate> endCaptor = ArgumentCaptor.forClass(LocalDate.class);
+        verify(studyRecordMapper).selectByMonthRange(eq(1L), startCaptor.capture(), endCaptor.capture());
+        assertEquals(LocalDate.of(2026, 2, 1), startCaptor.getValue());
+        assertEquals(LocalDate.of(2026, 3, 1), endCaptor.getValue());
     }
 }
 
