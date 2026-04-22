@@ -9,6 +9,19 @@ jobs:
   backend:
     name: Backend (Java) tests + coverage
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: 123456
+          MYSQL_DATABASE: beileme
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -p123456"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -19,6 +32,14 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: maven
+
+      - name: Install MySQL client
+        run: sudo apt-get update && sudo apt-get install -y mysql-client
+
+      - name: Initialize test database
+        run: |
+          mysql -h 127.0.0.1 -uroot -p123456 -e "SELECT 1"
+          mysql -h 127.0.0.1 -uroot -p123456 < init.sql
 
       - name: Run backend tests (JaCoCo)
         run: |
