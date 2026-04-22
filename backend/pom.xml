@@ -126,7 +126,7 @@
                             <goal>prepare-agent</goal>
                         </goals>
                         <configuration>
-                            <propertyName>jacocoArgLine</propertyName>
+                            <propertyName>argLine</propertyName>
                             <destFile>${jacoco.dataFile}</destFile>
                         </configuration>
                     </execution>
@@ -151,10 +151,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
-                <configuration>
-                    <!-- Keep any existing argLine and append JaCoCo agent -->
-                    <argLine>@{argLine} ${jacocoArgLine}</argLine>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
