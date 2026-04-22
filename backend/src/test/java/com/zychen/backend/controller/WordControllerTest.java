@@ -59,7 +59,7 @@ public class WordControllerTest {
     @Test
     void submitLearnResult_success() throws Exception {
         LearnRequest request = new LearnRequest();
-        request.setWordId(1L);
+        request.setWordId(2L);
         request.setIsCorrect(true);
         request.setStage(1);
 

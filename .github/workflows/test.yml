@@ -50,6 +50,8 @@ jobs:
               -Dspring.datasource.url="jdbc:mysql://127.0.0.1:3306/beileme?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci" \
               -Dspring.datasource.username=root \
               -Dspring.datasource.password=123456 \
+              -Dmybatis.mapper-locations=classpath:mapper/*.xml \
+              -Dmybatis.configuration.map-underscore-to-camel-case=true \
               test
           else
             mvn -f backend/pom.xml -e \
@@ -57,6 +59,8 @@ jobs:
               -Dspring.datasource.url="jdbc:mysql://127.0.0.1:3306/beileme?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci" \
               -Dspring.datasource.username=root \
               -Dspring.datasource.password=123456 \
+              -Dmybatis.mapper-locations=classpath:mapper/*.xml \
+              -Dmybatis.configuration.map-underscore-to-camel-case=true \
               test
           fi
 
