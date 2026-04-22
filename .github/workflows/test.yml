@@ -50,6 +50,17 @@ jobs:
             mvn -q -f backend/pom.xml test
           fi
 
+      - name: Print test reports on failure
+        if: failure()
+        run: |
+          echo "=== surefire reports ==="
+          ls -la backend/target/surefire-reports || true
+          for f in backend/target/surefire-reports/*.txt backend/target/surefire-reports/*.xml; do
+            [ -f "$f" ] || continue
+            echo "----- $f -----"
+            sed -n '1,220p' "$f"
+          done
+
       - name: Upload backend coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
