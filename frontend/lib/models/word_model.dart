@@ -119,15 +119,19 @@ class DailyWordsResponse {
   final List<Word> newWords;
   final List<Word> reviewWords;
   final int total;
-  final int maxNewWords;
-  final int maxReviewWords;
+
+  /// 当前用户可学习单词总量（用于首页展示）
+  final int learnableWordCount;
+
+  /// 当前用户到期可复习单词总量（用于首页展示）
+  final int reviewableWordCount;
 
   DailyWordsResponse({
     required this.newWords,
     required this.reviewWords,
     required this.total,
-    required this.maxNewWords,
-    required this.maxReviewWords,
+    required this.learnableWordCount,
+    required this.reviewableWordCount,
   });
 
   factory DailyWordsResponse.fromJson(Map<String, dynamic> json) {
@@ -137,27 +141,35 @@ class DailyWordsResponse {
         newWords: [],
         reviewWords: [],
         total: 0,
-        maxNewWords: 0,
-        maxReviewWords: 0,
+        learnableWordCount: 0,
+        reviewableWordCount: 0,
       );
     }
 
     final newWordsList = data['newWords'] as List<dynamic>? ?? [];
     final reviewWordsList = data['reviewWords'] as List<dynamic>? ?? [];
 
+    final parsedNewWords = newWordsList
+        .map((e) => Word.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final parsedReviewWords = reviewWordsList
+        .map((e) => Word.fromJson(e as Map<String, dynamic>))
+        .toList();
+
+    final learnableWordCount =
+        (data['learnableWordCount'] as num?)?.toInt() ?? parsedNewWords.length;
+
+    final reviewableWordCount =
+        (data['reviewableWordCount'] as num?)?.toInt() ?? parsedReviewWords.length;
+
     return DailyWordsResponse(
-      newWords: newWordsList
-          .map((e) => Word.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      reviewWords: reviewWordsList
-          .map((e) => Word.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      newWords: parsedNewWords,
+      reviewWords: parsedReviewWords,
       total:
           (data['total'] as num?)?.toInt() ??
-          newWordsList.length + reviewWordsList.length,
-      maxNewWords: (data['maxNewWords'] as num?)?.toInt() ?? newWordsList.length,
-      maxReviewWords:
-          (data['maxReviewWords'] as num?)?.toInt() ?? reviewWordsList.length,
+          parsedNewWords.length + parsedReviewWords.length,
+      learnableWordCount: learnableWordCount,
+      reviewableWordCount: reviewableWordCount,
     );
   }
 
@@ -167,8 +179,8 @@ class DailyWordsResponse {
         'newWords': newWords.map((e) => e.toJson()).toList(),
         'reviewWords': reviewWords.map((e) => e.toJson()).toList(),
         'total': total,
-        'maxNewWords': maxNewWords,
-        'maxReviewWords': maxReviewWords,
+        'learnableWordCount': learnableWordCount,
+        'reviewableWordCount': reviewableWordCount,
       },
     };
   }

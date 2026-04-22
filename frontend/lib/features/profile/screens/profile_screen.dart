@@ -398,9 +398,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
-    final totalLearned = _stats?.totalLearned ?? 1245;
-    const totalGoal = 3000;
-    final progress = (totalLearned / totalGoal).clamp(0.0, 1.0);
+    final totalLearned = _stats?.totalLearned ?? 0;
+    final totalGoal = (_stats?.totalVocabulary ?? 0) > 0
+        ? _stats!.totalVocabulary
+        : 3000;
+    final progress = totalGoal <= 0
+        ? 0.0
+        : (totalLearned / totalGoal).clamp(0.0, 1.0);
     final pct = (progress * 100).round();
 
     return Container(
@@ -429,18 +433,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: const Icon(Icons.refresh_rounded, color: _blue, size: 22),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              ),
-              TextButton(
-                onPressed: () => context.push('/wordbook-select'),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.only(left: 4),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: const Text(
-                  '换本词书',
-                  style: TextStyle(color: _blue, fontWeight: FontWeight.w600),
-                ),
               ),
             ],
           ),

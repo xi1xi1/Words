@@ -10,7 +10,6 @@ import 'features/challenge/screens/challenge_result_screen.dart';
 import 'features/profile/screens/profile_screen.dart';
 import 'features/wordbook/screens/wordbook_screen.dart';
 import 'features/leaderboard/screens/leaderboard_screen.dart';
-import 'features/wordbook/screens/wordbook_select_screen.dart';
 import 'features/profile/screens/settings_screen.dart';
 import 'features/challenge/screens/recent_battles_screen.dart';
 import 'features/review/screens/review_screen.dart';
@@ -159,13 +158,6 @@ class AppRouter {
           parentNavigatorKey: rootNavigatorKey,
           pageBuilder: (context, state) =>
               const MaterialPage(child: LeaderboardScreen()),
-        ),
-        GoRoute(
-          path: '/wordbook-select',
-          name: 'wordbook-select',
-          parentNavigatorKey: rootNavigatorKey,
-          pageBuilder: (context, state) =>
-              const MaterialPage(child: WordbookSelectScreen()),
         ),
         GoRoute(
           path: '/settings',
