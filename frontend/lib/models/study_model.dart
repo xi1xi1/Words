@@ -2,7 +2,13 @@
 class StudyStats {
   final int todayStudy;
   final int todayReview;
+
+  /// 用户累计学习（或完成）单词数
   final int totalWords;
+
+  /// 当前词库总单词数（word表总量）
+  final int totalVocabulary;
+
   final int masteredWords;
   final int wordbookWords;
   final int dueReviewCount;
@@ -13,6 +19,7 @@ class StudyStats {
     required this.todayStudy,
     required this.todayReview,
     required this.totalWords,
+    required this.totalVocabulary,
     required this.masteredWords,
     required this.wordbookWords,
     required this.dueReviewCount,
@@ -25,8 +32,13 @@ class StudyStats {
     return StudyStats(
       todayStudy: (data['todayStudy'] as num?)?.toInt() ?? 0,
       todayReview: (data['todayReview'] as num?)?.toInt() ?? 0,
-      totalWords: (data['totalWords'] as num?)?.toInt() ??
+      totalWords:
+          (data['totalWords'] as num?)?.toInt() ??
           (data['totalLearned'] as num?)?.toInt() ??
+          0,
+      totalVocabulary:
+          (data['totalVocabulary'] as num?)?.toInt() ??
+          (data['totalVocabularyCount'] as num?)?.toInt() ??
           0,
       masteredWords: (data['masteredWords'] as num?)?.toInt() ?? 0,
       wordbookWords: (data['wordbookWords'] as num?)?.toInt() ?? 0,
@@ -45,6 +57,7 @@ class StudyStats {
         'todayStudy': todayStudy,
         'todayReview': todayReview,
         'totalWords': totalWords,
+        'totalVocabulary': totalVocabulary,
         'masteredWords': masteredWords,
         'wordbookWords': wordbookWords,
         'dueReviewCount': dueReviewCount,

@@ -1,6 +1,13 @@
 # frontend
 
-A new Flutter project.
+[![Frontend Tests](https://github.com/xi1xi1/Words/actions/workflows/frontend-tests.yml/badge.svg)](https://github.com/xi1xi1/Words/actions/workflows/frontend-tests.yml)
+[![Frontend Coverage](https://codecov.io/gh/xi1xi1/Words/branch/main/graph/badge.svg?flag=frontend)](https://codecov.io/gh/xi1xi1/Words)
+
+## 覆盖率
+
+- 生成命令：`flutter test --coverage`
+- 报告文件：`coverage/lcov.info`
+- 当前覆盖率（线覆盖率）：84.61%
 
 ## Getting Started
 

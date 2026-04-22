@@ -1,16 +1,30 @@
 // lib/core/network/api_client.dart
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../constants/api_constants.dart';
 import 'api_exception.dart';
 
 class ApiClient {
   static final ApiClient _instance = ApiClient._internal();
+
   factory ApiClient() => _instance;
+
   ApiClient._internal();
 
-  http.Client get client => http.Client();
+  /// For testing: override the underlying HTTP client.
+  ///
+  /// When set, `ApiClient` will reuse this client for all requests.
+  static http.Client? debugHttpClient;
+
+  /// Called when server indicates the user is unauthorized (HTTP 401 or business code 401).
+  ///
+  /// Typically wired to `UserProvider.clearAuth()` in `main.dart`.
+  static Future<void> Function()? onUnauthorized;
+
+  http.Client get client => debugHttpClient ?? http.Client();
 
   String get baseUrl => ApiConstants.baseUrl;
 
@@ -20,19 +34,45 @@ class ApiClient {
   }
 
   Future<Map<String, String>> _getHeaders({bool needAuth = true}) async {
-    final headers = {
+    final headers = <String, String>{
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
 
     if (needAuth) {
       final token = await _getToken();
-      if (token != null) {
+      if (token != null && token.isNotEmpty) {
         headers['Authorization'] = 'Bearer $token';
       }
     }
 
     return headers;
+  }
+
+  int? _parseBusinessCode(Map<String, dynamic> json) {
+    final raw = json['code'];
+    if (raw is int) return raw;
+    if (raw is num) return raw.toInt();
+    if (raw is String) return int.tryParse(raw);
+    return null;
+  }
+
+  ApiException _toApiException({
+    required int fallbackCode,
+    required String fallbackMessage,
+    Map<String, dynamic>? json,
+  }) {
+    if (json == null) {
+      return ApiException(code: fallbackCode, message: fallbackMessage);
+    }
+
+    try {
+      return ApiException.fromJson(json);
+    } catch (_) {
+      final code = _parseBusinessCode(json) ?? fallbackCode;
+      final message = json['message']?.toString() ?? fallbackMessage;
+      return ApiException(code: code, message: message);
+    }
   }
 
   Future<Map<String, dynamic>> _request({
@@ -46,12 +86,10 @@ class ApiClient {
       (key, value) => MapEntry(key, value?.toString() ?? ''),
     );
 
-    final url = Uri.parse(
-      '$baseUrl$path',
-    ).replace(queryParameters: normalizedQueryParams);
+    final url = Uri.parse('$baseUrl$path')
+        .replace(queryParameters: normalizedQueryParams);
     final headers = await _getHeaders(needAuth: needAuth);
 
-    // 添加日志：打印完整请求信息
     print('🔵 [请求] $method $url');
     print('🔵 [请求头] $headers');
     if (data != null) print('🔵 [请求体] $data');
@@ -87,51 +125,65 @@ class ApiClient {
       throw ApiException(code: -1, message: '网络连接失败，请检查网络设置');
     }
 
-    // 添加日志：打印响应状态码和重定向信息
     print('🟢 [响应状态] ${response.statusCode}');
     print('🟢 [响应头] ${response.headers}');
     print('🟢 [响应体] ${response.body}');
 
-    return _handleResponse(response);
-  }
-
-  Map<String, dynamic> _handleResponse(http.Response response) {
     Map<String, dynamic> json;
     try {
       json = jsonDecode(response.body) as Map<String, dynamic>;
-    } catch (e) {
-      throw ApiException(code: response.statusCode, message: '服务器响应格式错误');
+    } catch (_) {
+      throw ApiException(
+        code: response.statusCode,
+        message: '服务器响应格式错误',
+      );
     }
 
-    final code = json['code'] as int;
     final httpStatusCode = response.statusCode;
+    final businessCode = _parseBusinessCode(json);
 
-    // ✅ 修改：HTTP 状态码是 200 就算成功（不管业务 code 是多少）
-    if (httpStatusCode >= 200 && httpStatusCode < 300) {
-      return json; // 直接返回，不检查业务 code
+    final unauthorizedByHttp = httpStatusCode == 401;
+    final unauthorizedByBusiness = businessCode == 401;
+    if (unauthorizedByHttp || unauthorizedByBusiness) {
+      final handler = onUnauthorized;
+      if (handler != null) {
+        try {
+          await handler();
+        } catch (_) {
+          // ignore
+        }
+      } else {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(ApiConstants.tokenKey);
+        await prefs.remove(ApiConstants.userInfoKey);
+      }
     }
 
-    // HTTP 状态码是 401，清除 Token
-    if (httpStatusCode == 401) {
-      _clearToken();
+    if (httpStatusCode < 200 || httpStatusCode >= 300) {
+      throw _toApiException(
+        fallbackCode: httpStatusCode,
+        fallbackMessage: '请求失败',
+        json: json,
+      );
     }
 
-    // HTTP 状态码错误，抛出异常
-    throw ApiException.fromJson(json);
+    if (businessCode != null && businessCode != 200) {
+      throw _toApiException(
+        fallbackCode: businessCode,
+        fallbackMessage: '请求失败',
+        json: json,
+      );
+    }
+
+    return json;
   }
 
-  Future<void> _clearToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(ApiConstants.tokenKey);
-  }
-
-  // GET 请求
   Future<Map<String, dynamic>> get(
     String path, {
     Map<String, dynamic>? queryParams,
     bool needAuth = true,
   }) async {
-    return await _request(
+    return _request(
       method: 'GET',
       path: path,
       queryParams: queryParams,
@@ -139,13 +191,12 @@ class ApiClient {
     );
   }
 
-  // POST 请求
   Future<Map<String, dynamic>> post(
     String path, {
     Map<String, dynamic>? data,
     bool needAuth = true,
   }) async {
-    return await _request(
+    return _request(
       method: 'POST',
       path: path,
       data: data,
@@ -153,13 +204,12 @@ class ApiClient {
     );
   }
 
-  // PUT 请求
   Future<Map<String, dynamic>> put(
     String path, {
     Map<String, dynamic>? data,
     bool needAuth = true,
   }) async {
-    return await _request(
+    return _request(
       method: 'PUT',
       path: path,
       data: data,
@@ -167,11 +217,14 @@ class ApiClient {
     );
   }
 
-  // DELETE 请求
   Future<Map<String, dynamic>> delete(
     String path, {
     bool needAuth = true,
   }) async {
-    return await _request(method: 'DELETE', path: path, needAuth: needAuth);
+    return _request(
+      method: 'DELETE',
+      path: path,
+      needAuth: needAuth,
+    );
   }
 }

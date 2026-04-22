@@ -2,15 +2,20 @@
 
 # 背了么
 
+[![Frontend Tests](https://github.com/xi1xi1/Words/actions/workflows/frontend-tests.yml/badge.svg)](https://github.com/xi1xi1/Words/actions/workflows/frontend-tests.yml)
+[![Frontend Coverage](https://codecov.io/gh/xi1xi1/Words/branch/main/graph/badge.svg?flag=frontend)](https://codecov.io/gh/xi1xi1/Words)
+
+> 覆盖率（本地 `flutter test --coverage`）：84.61%（线覆盖率）
+
+
 ---
 
 ## 团队成员
 
-| 姓名 | 学号 | 分工 |
-|------|-------|------|
-| 张欣 | 2312190333 | 前端开发 |
-| 陈子怡 | 2312190329 | 后端开发 |
-
+| 姓名 | 学号 | 
+|------|------|
+| **张欣** | 2312190333 |
+| **陈子怡** | 2312190329 | 
 ---
 
 ## 项目简介
@@ -35,5 +40,21 @@
 - **在校大学生**（四六级、考研备考）
 - **背单词总放弃的“反复开始者”**
 
+---
 
+## Figma 链接
+https://www.figma.com/make/tgyOxxZ9QKeIiUhGVRX2GV/%E8%83%8C%E5%8D%95%E8%AF%8Dapp?t=a35DJGc2SghKkhS6-1
 
+## v0 链接
+https://v0.app/chat/app-vnAAuRusc91?ref=B6YOZS
+
+---
+
+## 团队分工表
+
+| 姓名 | 第二周（UI设计） | 第三周（软件架构） |
+|------|------------------|-------------------|
+| **张欣** | 页面视觉设计（首页、闯关模块、我的页面、个人设置）<br/>设计规范整理（组件库、配色方案落地） | 前端架构设计（Flutter页面/组件结构）<br/>系统交互流程设计（登录、学习、闯关）<br/>前端项目初始化<br/>architecture.md、api.md文档编写 |
+| **陈子怡** | 信息架构设计（功能模块梳理、页面层级规划）<br/>设计说明文档编写（配色方案、字体规范、交互说明） | 后端架构设计（Spring Boot模块划分）<br/>数据库设计（ER图、核心表）<br/>后端项目初始化<br/>database.md、claude.md文档编写|
+
+---
