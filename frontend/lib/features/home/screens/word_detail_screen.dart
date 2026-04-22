@@ -60,12 +60,39 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
   }
 
   Future<void> _generateAIMemory() async {
-    if (_word == null || _word!.id <= 0 || _aiLoading) return;
+    final word = _word;
+    if (_aiLoading) return;
+
+    if (word == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('单词详情加载中，请稍后再试')),
+      );
+      return;
+    }
+
+    if (word.id <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('当前单词信息异常，暂时无法生成联想记忆')),
+      );
+      return;
+    }
+
     setState(() => _aiLoading = true);
     try {
-      final response = await _wordbookService.getAIMemoryContent(_word!.id);
+      final response = await _wordbookService.getAIMemoryContent(word.id);
       if (!mounted) return;
+
+      if (!response.hasContent) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('AI 暂时没有生成可展示内容，请稍后重试')),
+        );
+        return;
+      }
+
       setState(() => _aiContent = response);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('AI 联想记忆生成成功')),
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

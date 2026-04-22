@@ -26,8 +26,8 @@ class _HomeContentState extends State<HomeContent> {
   bool _loading = true;
   List<Word> _newWords = [];
   List<Word> _reviewWords = [];
-  int _maxNewWords = 0;
-  int _maxReviewWords = 0;
+  int _learnableWordCount = 0;
+  int _reviewableWordCount = 0;
 
   static const _bg = Color(0xFFF7F8FA);
   static const _blue = Color(0xFF4A74F5);
@@ -48,16 +48,16 @@ class _HomeContentState extends State<HomeContent> {
       setState(() {
         _newWords = r.newWords;
         _reviewWords = r.reviewWords;
-        _maxNewWords = r.maxNewWords;
-        _maxReviewWords = r.maxReviewWords;
+        _learnableWordCount = r.learnableWordCount;
+        _reviewableWordCount = r.reviewableWordCount;
       });
     } on ApiException {
       if (!mounted) return;
       setState(() {
         _newWords = [];
         _reviewWords = [];
-        _maxNewWords = 0;
-        _maxReviewWords = 0;
+        _learnableWordCount = 0;
+        _reviewableWordCount = 0;
       });
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -150,14 +150,14 @@ class _HomeContentState extends State<HomeContent> {
               const SizedBox(height: 22),
               Row(children: [
                 Expanded(
-                  child: _statCard('今日学习', '${_maxNewWords > 0 ? _maxNewWords : _newWords.length}', Icons.menu_book_rounded, _blue, () async {
+                  child: _statCard('今日学习', '${_learnableWordCount > 0 ? _learnableWordCount : _newWords.length}', Icons.menu_book_rounded, _blue, () async {
                     await context.push('/study');
                     if (mounted) await _load();
                   }),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _statCard('待复习', '${_maxReviewWords > 0 ? _maxReviewWords : _reviewWords.length}', Icons.autorenew_rounded, const Color(0xFFFF9F43), () async {
+                  child: _statCard('待复习', '${_reviewableWordCount > 0 ? _reviewableWordCount : _reviewWords.length}', Icons.autorenew_rounded, const Color(0xFFFF9F43), () async {
                     if (_reviewWords.isNotEmpty) {
                       await context.push('/review');
                       if (mounted) await _load();
