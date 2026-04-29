@@ -1,5 +1,6 @@
 # 背了么
 
+[![Backend Coverage](https://codecov.io/gh/xi1xi1/Words/branch/main/graph/badge.svg?flag=backend)](https://codecov.io/gh/xi1xi1/Words)
 [![CI](https://github.com/xi1xi1/Words/actions/workflows/ci.yml/badge.svg)](https://github.com/xi1xi1/Words/actions/workflows/ci.yml)
 [![Frontend Coverage](https://codecov.io/gh/xi1xi1/Words/branch/master/graph/badge.svg?flag=frontend)](https://codecov.io/gh/xi1xi1/Words)
 
