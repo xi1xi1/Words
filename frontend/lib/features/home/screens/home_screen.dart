@@ -29,7 +29,6 @@ class _HomeContentState extends State<HomeContent> {
   int _learnableWordCount = 0;
   int _reviewableWordCount = 0;
 
-  static const _bg = Color(0xFFF7F8FA);
   static const _blue = Color(0xFF4A74F5);
   static const _navy = Color(0xFF1A1C1E);
   static const _muted = Color(0xFF8E9297);
@@ -112,10 +111,8 @@ class _HomeContentState extends State<HomeContent> {
     final featured = _featured;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final surface = theme.colorScheme.surface;
     final onSurface = theme.colorScheme.onSurface;
     final muted = isDark ? const Color(0xFF9AA3AF) : _muted;
-    final exampleBg = isDark ? const Color(0xFF252A31) : const Color(0xFFF3F4F6);
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: RefreshIndicator(
@@ -202,11 +199,10 @@ class _HomeContentState extends State<HomeContent> {
   Widget _statCard(String label, String value, IconData icon, Color color, VoidCallback onTap) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final surface = theme.colorScheme.surface;
     final onSurface = theme.colorScheme.onSurface;
     final muted = isDark ? const Color(0xFF9AA3AF) : _muted;
     return Material(
-      color: surface,
+      color: theme.colorScheme.surface,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -232,7 +228,6 @@ class _HomeContentState extends State<HomeContent> {
   Widget _featuredCard(Word word, {bool isPlaceholder = false}) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final surface = theme.colorScheme.surface;
     final onSurface = theme.colorScheme.onSurface;
     final muted = isDark ? const Color(0xFF9AA3AF) : _muted;
     final exampleBg = isDark ? const Color(0xFF252A31) : const Color(0xFFF3F4F6);
@@ -244,7 +239,7 @@ class _HomeContentState extends State<HomeContent> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: surface,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 14, offset: const Offset(0, 6))],
       ),

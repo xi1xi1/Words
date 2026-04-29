@@ -22,7 +22,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<StudyTrend>? _trend;
   List<LearningCalendar> _calendars = [];
 
-  static const _bg = Color(0xFFF7F8FA);
   static const _blue = Color(0xFF4A74F5);
   static const _navy = Color(0xFF1A1C1E);
 
