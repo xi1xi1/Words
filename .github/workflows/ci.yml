@@ -1,0 +1,161 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - "init.sql"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    branches: [main, master, develop]
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - "init.sql"
+      - ".github/workflows/ci.yml"
+
+jobs:
+  frontend:
+    name: Frontend Flutter CI
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.35.7"
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze Flutter code
+        run: flutter analyze
+
+      - name: Run tests with coverage
+        run: flutter test --coverage
+
+      - name: Upload frontend coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: frontend/coverage/lcov.info
+          flags: frontend
+          fail_ci_if_error: false
+
+      - name: Upload frontend coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-lcov
+          path: frontend/coverage/lcov.info
+
+  backend-lint:
+    name: Backend Lint (Checkstyle)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Run backend checkstyle
+        run: |
+          if [ -f backend/mvnw ]; then
+            chmod +x backend/mvnw
+            ./backend/mvnw -f backend/pom.xml -e -DskipTests checkstyle:check
+          else
+            mvn -f backend/pom.xml -e -DskipTests checkstyle:check
+          fi
+
+  backend:
+    name: Backend Java CI
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: 123456
+          MYSQL_DATABASE: beileme
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -p123456"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Install MySQL client
+        run: sudo apt-get update && sudo apt-get install -y mysql-client
+
+      - name: Initialize test database
+        run: |
+          mysql -h 127.0.0.1 -uroot -p123456 -e "SELECT 1"
+          mysql -h 127.0.0.1 -uroot -p123456 < init.sql
+
+      - name: Run backend tests with JaCoCo
+        run: |
+          if [ -f backend/mvnw ]; then
+            chmod +x backend/mvnw
+            ./backend/mvnw -f backend/pom.xml -e \
+              -Dspring.test.context.failure.threshold=999 \
+              -Dspring.datasource.url="jdbc:mysql://127.0.0.1:3306/beileme?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci" \
+              -Dspring.datasource.username=root \
+              -Dspring.datasource.password=123456 \
+              -Dmybatis.mapper-locations=classpath:mapper/*.xml \
+              -Dmybatis.configuration.map-underscore-to-camel-case=true \
+              test
+          else
+            mvn -f backend/pom.xml -e \
+              -Dspring.test.context.failure.threshold=999 \
+              -Dspring.datasource.url="jdbc:mysql://127.0.0.1:3306/beileme?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci" \
+              -Dspring.datasource.username=root \
+              -Dspring.datasource.password=123456 \
+              -Dmybatis.mapper-locations=classpath:mapper/*.xml \
+              -Dmybatis.configuration.map-underscore-to-camel-case=true \
+              test
+          fi
+
+      - name: Print backend test reports on failure
+        if: failure()
+        run: |
+          echo "=== surefire reports ==="
+          ls -la backend/target/surefire-reports || true
+          for f in backend/target/surefire-reports/*.txt backend/target/surefire-reports/*.xml; do
+            [ -f "$f" ] || continue
+            echo "----- $f -----"
+            sed -n '1,220p' "$f"
+          done
+
+      - name: Upload backend coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: backend/target/site/jacoco/jacoco.xml
+          flags: backend
+          fail_ci_if_error: true
