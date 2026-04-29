@@ -163,7 +163,7 @@
 
 ## PR 链接
 
-- PR #19：https://github.com/xi1xi1/Words/pull/19
+- PR #28：https://github.com/xi1xi1/Words/pull/28  
 
 ---
 

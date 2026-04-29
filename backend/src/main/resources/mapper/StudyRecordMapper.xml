@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zychen.backend.mapper.StudyRecordMapper">
+
+    <select id="selectByUserIdAndStudyDate" resultType="com.zychen.backend.entity.StudyRecord">
+        SELECT id,
+               user_id,
+               study_count,
+               review_count,
+               correct_rate,
+               study_date,
+               create_time,
+               update_time
+        FROM study_record
+        WHERE user_id = #{userId}
+          AND study_date = #{studyDate}
+        LIMIT 1
+    </select>
+
+    <insert id="insertFromDto">
+        INSERT INTO study_record (user_id, study_date, study_count, review_count, correct_rate)
+        VALUES (#{userId}, #{studyDate}, #{studyCount}, #{reviewCount}, #{correctRate})
+    </insert>
+
+    <update id="updateFromDto">
+        UPDATE study_record
+        SET study_count  = #{studyCount},
+            review_count = #{reviewCount},
+            correct_rate = #{correctRate}
+        WHERE user_id = #{userId}
+          AND study_date = #{studyDate}
+    </update>
+
+    <select id="selectTrendSince" resultType="com.zychen.backend.entity.StudyRecord">
+        SELECT id,
+               user_id,
+               study_count,
+               review_count,
+               correct_rate,
+               study_date,
+               create_time,
+               update_time
+        FROM study_record
+        WHERE user_id = #{userId}
+          AND study_date &gt;= #{startDate}
+        ORDER BY study_date ASC
+    </select>
+
+    <select id="selectByMonthRange" resultType="com.zychen.backend.entity.StudyRecord">
+        SELECT id,
+               user_id,
+               study_count,
+               review_count,
+               correct_rate,
+               study_date,
+               create_time,
+               update_time
+        FROM study_record
+        WHERE user_id = #{userId}
+          AND study_date &gt;= #{startDate}
+          AND study_date &lt; #{endDate}
+        ORDER BY study_date ASC
+    </select>
+</mapper>

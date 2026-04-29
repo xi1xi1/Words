@@ -1,13 +1,9 @@
-# 项目名称
-
 # 背了么
 
 [![CI](https://github.com/xi1xi1/Words/actions/workflows/ci.yml/badge.svg)](https://github.com/xi1xi1/Words/actions/workflows/ci.yml)
 [![Frontend Coverage](https://codecov.io/gh/xi1xi1/Words/branch/master/graph/badge.svg?flag=frontend)](https://codecov.io/gh/xi1xi1/Words)
 
 > 覆盖率（本地 `flutter test --coverage`）：84.61%（线覆盖率）
-
-
 ---
 
 ## 团队成员

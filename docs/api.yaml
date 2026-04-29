@@ -198,12 +198,78 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/Word'
+            total:
+              type: integer
+              description: 当前返回的新词与复习词合计
+              example: 12
+            learnableWordCount:
+              type: integer
+              description: |
+                可学单词数量（学会前都算待学习）：
+                `word` 中尚未出现在该用户 `user_word` 的词数
+                + `user_word` 中 status=0、today_mastered=0、review_count=0 的词数。
+              example: 1800
+            reviewableWordCount:
+              type: integer
+              description: |
+                可复习单词数量：`user_word` 中 status=0、review_count>0 且 next_review<=NOW() 的词数（仅查询，不改库表）。
+              example: 42
+
+    LearnResponse:
+      type: object
+      properties:
+        nextWord:
+          $ref: '#/components/schemas/NextWordInfo'
+        completedCount:
+          type: integer
+          description: 今日已完成单词数
+          example: 3
+        totalCount:
+          type: integer
+          description: 今日需要学习的单词总数
+          example: 20
+
+    NextWordInfo:
+      type: object
+      properties:
+        wordId:
+          type: integer
+          format: int64
+          example: 123
+        word:
+          type: string
+          example: abandon
+        meaning:
+          type: array
+          items:
+            type: string
+          example: ["v. 放弃", "n. 放任"]
+        phonetic:
+          type: string
+          example: "/əˈbændən/"
+        stage:
+          type: integer
+          minimum: 1
+          maximum: 3
+          description: "下一阶段：1-选义 2-选例 3-认词"
+          example: 2
+        options:
+          type: array
+          items:
+            type: string
+          description: "阶段1时的4个选项（干扰项）"
+          example: ["放弃", "接受", "坚持", "离开"]
+        example:
+          type: string
+          description: "阶段2时的例句"
+          example: "He abandoned his plan." 
 
     LearnRequest:
       type: object
       required:
         - wordId
         - isCorrect
+        - stage
       properties:
         wordId:
           type: integer
@@ -212,6 +278,12 @@ components:
         isCorrect:
           type: boolean
           example: true
+        stage:
+          type: integer
+          minimum: 1
+          maximum: 3
+          description: "学习阶段：1-选义 2-选例 3-认词"
+          example: 1
 
     ChallengeStartRequest:
       type: object
@@ -265,10 +337,16 @@ components:
       type: object
       required:
         - challengeId
+        - levelType
         - answers
       properties:
         challengeId:
           type: string
+        levelType:
+          type: integer
+          minimum: 1
+          maximum: 3
+          description: "关卡等级（1初级 2中级 3高级）"
         answers:
           type: array
           items:
@@ -331,6 +409,9 @@ components:
           type: integer
         totalWords:
           type: integer
+        totalVocabulary:
+          type: integer
+          description: 当前词库总单词数（word表总量）
         masteredWords:
           type: integer
         wordbookWords:
@@ -354,6 +435,105 @@ components:
           type: integer
         correctRate:
           type: number
+
+    StudyCalendar:
+      type: object
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+        studyDates:
+          type: array
+          description: 该月存在 study_record 的日期（yyyy-MM-dd）
+          items:
+            type: string
+            format: date
+
+    MemoryHintBlock:
+      type: object
+      description: 单个联想记忆模块；如果该单词不适合该类型，可返回 null
+      properties:
+        title:
+          type: string
+          description: 前端展示标题
+          example: 谐音记忆
+        content:
+          type: string
+          description: 联想核心内容
+          example: 俺必胜
+        explanation:
+          type: string
+          description: 联想与释义之间的关联说明
+          example: 有雄心的人才会说“俺必胜”，帮助记住 ambition 表示雄心、野心。
+      required:
+        - title
+        - content
+        - explanation
+
+    AIMemoryContent:
+      type: object
+      properties:
+        word:
+          type: string
+          example: ambition
+        meaning:
+          type: string
+          description: 当前联想主要绑定的中文释义
+          example: 野心；雄心
+        homophonic:
+          allOf:
+            - $ref: '#/components/schemas/MemoryHintBlock'
+          nullable: true
+          example:
+            title: 谐音记忆
+            content: 俺必胜
+            explanation: 有雄心的人才会说“俺必胜”，帮助记住 ambition 表示雄心、野心。
+        morpheme:
+          allOf:
+            - $ref: '#/components/schemas/MemoryHintBlock'
+          nullable: true
+          example:
+            title: 拆词联想
+            content: amb + it + ion
+            explanation: 可以联想成四处走动拉选票，体现强烈进取心和野心。
+        story:
+          allOf:
+            - $ref: '#/components/schemas/MemoryHintBlock'
+          nullable: true
+          example:
+            title: 故事记忆
+            content: 他为了竞选成功四处奔走，嘴里一直念着“俺必胜”，这份 ambition 让他停不下来。
+            explanation: 通过竞选奔走和“俺必胜”的故事，把 ambition 和记成雄心、野心。
+        summary:
+          type: string
+          description: 一句话记忆总结
+          example: ambition = 俺必胜 = 有雄心、有野心的人
+        notes:
+          type: string
+          nullable: true
+          description: 生成说明；用于提示某些记忆类型为何缺失
+          example: 该词谐音联想较自然，拆词为辅助记忆，并非严格词源分析。
+      required:
+        - word
+        - meaning
+        - summary
+
+    AIMemoryResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: success
+        data:
+          $ref: '#/components/schemas/AIMemoryContent'
+      required:
+        - code
+        - message
+        - data
 
 paths:
   /auth/register:
@@ -522,6 +702,12 @@ paths:
       tags:
         - Words
       summary: 提交学习结果
+      description: |
+        渐进式学习流程：
+        - 阶段1（选义）：显示单词和4个中文选项，选对进入阶段2，选错回到阶段1
+        - 阶段2（选例）：显示单词+例句，选择是否认识，选认识进入阶段3，选不认识回到阶段1
+        - 阶段3（认词）：只显示单词，选择是否认识，选认识标记为今日掌握，选不认识回到阶段1
+        提交后返回下一个需要学习的单词
       operationId: submitLearnResult
       security:
         - bearerAuth: []
@@ -537,7 +723,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                $ref: '#/components/schemas/LearnResponse'
 
   /words/search:
     get:
@@ -751,7 +937,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
 
-  /wordbook/add:
+  /wordbook/add/{wordId}:
     post:
       tags:
         - Wordbook
@@ -759,18 +945,13 @@ paths:
       operationId: addToWordbook
       security:
         - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - wordId
-              properties:
-                wordId:
-                  type: integer
-                  format: int64
+      parameters:
+        - name: wordId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
       responses:
         '200':
           description: 添加成功
@@ -806,8 +987,17 @@ paths:
     get:
       tags:
         - Wordbook
-      summary: 获取AI生成内容
-      operationId: getAIContent
+      summary: 获取AI联想记忆内容
+      description: |
+        为指定单词生成结构化的联想记忆内容，优先返回更适合该单词的记忆钩子：
+        - 谐音记忆：将英文发音与中文短语建立记忆锚点
+        - 拆词联想：基于词形拆分、词根词缀或近似结构进行辅助记忆
+        - 故事记忆：用简短场景把单词含义串起来
+
+        说明：
+        - 并非每个单词都适合所有类型；不适合时对应字段可为 null
+        - 拆词联想用于辅助记忆，不保证严格词源学分析
+      operationId: getAIMemoryContent
       security:
         - bearerAuth: []
       parameters:
@@ -823,7 +1013,39 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                $ref: '#/components/schemas/AIMemoryResponse'
+              example:
+                code: 200
+                message: success
+                data:
+                  word: ambition
+                  meaning: 野心；雄心
+                  homophonic:
+                    title: 谐音记忆
+                    content: 俺必胜
+                    explanation: 有雄心的人才会说“俺必胜”，帮助记住 ambition 表示雄心、野心。
+                  morpheme:
+                    title: 拆词联想
+                    content: amb + it + ion
+                    explanation: 可以联想成四处走动拉选票，体现强烈进取心和野心。
+                  story:
+                    title: 故事记忆
+                    content: 他为了竞选成功四处奔走，嘴里一直念着“俺必胜”，这份 ambition 让他停不下来。
+                    explanation: 通过竞选奔走和“俺必胜”的故事，把 ambition 和记成雄心、野心。
+                  summary: ambition = 俺必胜 = 有雄心、有野心的人
+                  notes: 该词谐音联想较自然，拆词为辅助记忆，并非严格词源分析。
+        '404':
+          description: 单词不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: AI生成失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /study/stats:
     get:
@@ -906,4 +1128,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/StudyCalendar'

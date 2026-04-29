@@ -101,6 +101,11 @@ out/
 **/mvnw
 **/mvnw.cmd
 **/.mvn/
+!backend/mvnw
+!backend/mvnw.cmd
+!backend/.mvn/
+!backend/.mvn/wrapper/
+!backend/.mvn/wrapper/maven-wrapper.properties
 
 # 依赖目录
 **/node_modules/
@@ -153,8 +158,8 @@ out/
 
 # Docker
 **/.dockerignore
-**/Dockerfile
-**/docker-compose*.yml
+#**/Dockerfile
+#**/docker-compose*.yml
 **/*.docker
 
 # IDE 配置文件（确保这些不被提交）
