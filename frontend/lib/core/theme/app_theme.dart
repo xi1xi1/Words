@@ -11,11 +11,9 @@ class AppTheme {
     colorScheme: const ColorScheme.light(
       primary: AppColors.primaryLight,
       secondary: AppColors.secondaryLight,
-      surface: AppColors.cardLight,
-      background: AppColors.backgroundLight,
+      surface: AppColors.backgroundLight,
       onPrimary: Colors.white,
       onSurface: AppColors.textPrimaryLight,
-      onBackground: AppColors.textPrimaryLight,
       outline: AppColors.dividerLight,
     ),
 
@@ -61,11 +59,9 @@ class AppTheme {
     colorScheme: const ColorScheme.dark(
       primary: AppColors.primaryDark,
       secondary: AppColors.secondaryDark,
-      surface: AppColors.cardDark,
-      background: AppColors.backgroundDark,
+      surface: AppColors.backgroundDark,
       onPrimary: Colors.white,
       onSurface: AppColors.textPrimaryDark,
-      onBackground: AppColors.textPrimaryDark,
       outline: AppColors.dividerDark,
     ),
 

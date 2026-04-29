@@ -1,6 +1,7 @@
 // lib/core/network/api_client.dart
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -90,9 +91,9 @@ class ApiClient {
         .replace(queryParameters: normalizedQueryParams);
     final headers = await _getHeaders(needAuth: needAuth);
 
-    print('🔵 [请求] $method $url');
-    print('🔵 [请求头] $headers');
-    if (data != null) print('🔵 [请求体] $data');
+    debugPrint('🔵 [请求] $method $url');
+    debugPrint('🔵 [请求头] $headers');
+    if (data != null) debugPrint('🔵 [请求体] $data');
 
     http.Response response;
 
@@ -125,9 +126,9 @@ class ApiClient {
       throw ApiException(code: -1, message: '网络连接失败，请检查网络设置');
     }
 
-    print('🟢 [响应状态] ${response.statusCode}');
-    print('🟢 [响应头] ${response.headers}');
-    print('🟢 [响应体] ${response.body}');
+    debugPrint('🟢 [响应状态] ${response.statusCode}');
+    debugPrint('🟢 [响应头] ${response.headers}');
+    debugPrint('🟢 [响应体] ${response.body}');
 
     Map<String, dynamic> json;
     try {

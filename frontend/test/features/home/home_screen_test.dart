@@ -9,7 +9,6 @@ import 'package:beileme/core/constants/api_constants.dart';
 import 'package:beileme/core/network/api_client.dart';
 import 'package:beileme/core/providers/wordbook_provider.dart';
 import 'package:beileme/features/home/screens/home_screen.dart';
-import 'package:beileme/models/word_model.dart';
 
 import '../../test_utils.dart';
 

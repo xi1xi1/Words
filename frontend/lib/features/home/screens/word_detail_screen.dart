@@ -579,57 +579,6 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
     );
   }
 
-  Widget _buildWordGroupCard(String title, List<String> words, bool positive) {
-    return Container(
-      height: 132,
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: _navy,
-            ),
-          ),
-          const Spacer(),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: words.map((item) {
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: positive ? _green : Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: positive ? null : Border.all(color: _cardBorder),
-                ),
-                child: Text(
-                  item,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: positive ? Colors.white : _navy,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _sectionCard({
     String? title,
     Widget? titleWidget,
