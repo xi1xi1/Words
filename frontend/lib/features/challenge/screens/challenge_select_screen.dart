@@ -21,7 +21,6 @@ class _ChallengeSelectScreenState extends State<ChallengeSelectScreen> {
   int? _selectedLevel;
   List<LeaderboardEntry> _topEntries = [];
 
-  static const _bg = Color(0xFFF7F8FA);
   static const _blue = Color(0xFF4D7CFF);
   static const _green = Color(0xFF66CC77);
   static const _orange = Color(0xFFFFA04D);
