@@ -17,7 +17,7 @@ dependencies:
     sdk: flutter
 
   http: ^1.2.1
-  go_router: ^13.0.0 # 确认有这个
+  go_router: ^17.2.2 # 确认有这个
   provider: ^6.1.1
   shared_preferences: ^2.2.2
 
