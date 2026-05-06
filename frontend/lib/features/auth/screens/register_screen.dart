@@ -23,7 +23,67 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
+  String? _validateUsername(String? value) {
+    final username = value?.trim() ?? '';
+    if (username.isEmpty) {
+      return '请输入用户名';
+    }
+    if (username.length < 3) {
+      return '用户名至少3个字符';
+    }
+    if (username.length > 50) {
+      return '用户名不能超过50个字符';
+    }
+    final usernameRegex = RegExp(r'^[a-zA-Z0-9_\u4e00-\u9fa5]+$');
+    if (!usernameRegex.hasMatch(username)) {
+      return '用户名仅支持中文、英文、数字和下划线';
+    }
+    return null;
+  }
+
+  String? _validateEmail(String? value) {
+    final email = value?.trim() ?? '';
+    if (email.isEmpty) {
+      return '请输入邮箱';
+    }
+    final emailRegex = RegExp(r'^[\w.%-]+@[\w.-]+\.[A-Za-z]{2,}$');
+    if (!emailRegex.hasMatch(email)) {
+      return '请输入有效的邮箱地址';
+    }
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    final password = value ?? '';
+    if (password.isEmpty) {
+      return '请输入密码';
+    }
+    if (password.length < 6) {
+      return '密码至少6位';
+    }
+    if (password.length > 100) {
+      return '密码不能超过100位';
+    }
+    if (password.trim().isEmpty) {
+      return '密码不能全部为空格';
+    }
+    return null;
+  }
+
+  String? _validateConfirmPassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return '请确认密码';
+    }
+    final error = _validatePassword(value);
+    if (error != null) return error;
+    if (value != _passwordController.text) {
+      return '两次输入的密码不一致';
+    }
+    return null;
+  }
+
   Future<void> _handleRegister() async {
+    if (_isLoading) return;
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -59,7 +119,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+          SnackBar(content: Text(e.safeMessage), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -108,18 +168,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       prefixIcon: Icon(Icons.person),
                       border: OutlineInputBorder(),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return '请输入用户名';
-                      }
-                      if (value.length < 3) {
-                        return '用户名至少3个字符';
-                      }
-                      if (value.length > 50) {
-                        return '用户名不能超过50个字符';
-                      }
-                      return null;
-                    },
+                    validator: _validateUsername,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -131,18 +180,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       prefixIcon: Icon(Icons.email),
                       border: OutlineInputBorder(),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return '请输入邮箱';
-                      }
-                      final emailRegex = RegExp(
-                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                      );
-                      if (!emailRegex.hasMatch(value)) {
-                        return '请输入有效的邮箱地址';
-                      }
-                      return null;
-                    },
+                    validator: _validateEmail,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -166,18 +204,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       border: const OutlineInputBorder(),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return '请输入密码';
-                      }
-                      if (value.length < 6) {
-                        return '密码至少6位';
-                      }
-                      if (value.length > 100) {
-                        return '密码不能超过100位';
-                      }
-                      return null;
-                    },
+                    validator: _validatePassword,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -201,15 +228,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       border: const OutlineInputBorder(),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return '请确认密码';
-                      }
-                      if (value != _passwordController.text) {
-                        return '两次输入的密码不一致';
-                      }
-                      return null;
-                    },
+                    validator: _validateConfirmPassword,
                   ),
                   const SizedBox(height: 32),
                   SizedBox(
