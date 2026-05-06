@@ -1,6 +1,7 @@
 package com.zychen.backend.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zychen.backend.service.AuthService;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -14,8 +15,9 @@ import static org.mockito.Mockito.when;
 
 class JwtInterceptorTest {
 
+    private final AuthService authService = mock(AuthService.class);
     private final JwtUtil jwtUtil = mock(JwtUtil.class);
-    private final JwtInterceptor interceptor = new JwtInterceptor(jwtUtil, new ObjectMapper());
+    private final JwtInterceptor interceptor = new JwtInterceptor(authService, jwtUtil, new ObjectMapper());
 
     @Test
     void preHandle_optionsRequest_allowsDirectly() throws Exception {
@@ -39,7 +41,7 @@ class JwtInterceptorTest {
         MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/words/daily");
         req.addHeader("Authorization", "Bearer bad-token");
         MockHttpServletResponse resp = new MockHttpServletResponse();
-        when(jwtUtil.validateToken("bad-token")).thenReturn(false);
+        when(authService.validateToken("bad-token")).thenReturn(false);
 
         assertFalse(interceptor.preHandle(req, resp, new Object()));
         assertEquals(401, resp.getStatus());
@@ -50,7 +52,7 @@ class JwtInterceptorTest {
         MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/words/daily");
         req.addHeader("Authorization", "Bearer good");
         MockHttpServletResponse resp = new MockHttpServletResponse();
-        when(jwtUtil.validateToken("good")).thenReturn(true);
+        when(authService.validateToken("good")).thenReturn(true);
         when(jwtUtil.getUserIdFromToken("good")).thenReturn(7L);
 
         assertTrue(interceptor.preHandle(req, resp, new Object()));
@@ -63,7 +65,7 @@ class JwtInterceptorTest {
         MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/words/daily");
         req.addHeader("Authorization", "Bearer x");
         MockHttpServletResponse resp = new MockHttpServletResponse();
-        when(jwtUtil.validateToken("x")).thenReturn(true);
+        when(authService.validateToken("x")).thenReturn(true);
         when(jwtUtil.getUserIdFromToken("x")).thenThrow(new RuntimeException("boom"));
 
         assertFalse(interceptor.preHandle(req, resp, new Object()));

@@ -119,6 +119,8 @@ out/
 **.env.production
 **.env.development
 **/application.properties
+# 允许提交测试专用配置（无生产密钥）；其余 application.properties 仍忽略
+!backend/src/test/resources/application.properties
 **/application.yml
 
 # 测试覆盖率

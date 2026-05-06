@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.zychen.backend.common.PromptInputSanitizer;
 import com.zychen.backend.entity.Word;
 import com.zychen.backend.mapper.WordMapper;
 import com.zychen.backend.service.AIService;
@@ -147,8 +148,9 @@ public class AIServiceImpl implements AIService {
     }
 
     private static String buildPrompt(String word, String meaning) {
-        String m = meaning == null ? "" : meaning.trim();
-        return "English word: \"" + word + "\". Meaning (may be JSON): " + m
+        String w = PromptInputSanitizer.sanitizeWord(word);
+        String m = PromptInputSanitizer.sanitizeMeaning(meaning == null ? "" : meaning);
+        return "English word: \"" + w + "\". Meaning (may be JSON): " + m
                 + ". Write ONE short natural English sentence using this word. Output only the sentence.";
     }
 
@@ -166,8 +168,9 @@ public class AIServiceImpl implements AIService {
     }
 
     private static String buildMemoryUserPrompt(String word, String meaning) {
-        String m = meaning == null ? "" : meaning.trim();
-        return "Word: " + word + "\n"
+        String w = PromptInputSanitizer.sanitizeWord(word);
+        String m = PromptInputSanitizer.sanitizeMeaning(meaning == null ? "" : meaning);
+        return "Word: " + w + "\n"
                 + "Meaning: " + m + "\n"
                 + "Generate Chinese mnemonic hints. "
                 + "If some hint type is unsuitable, set it to null. "

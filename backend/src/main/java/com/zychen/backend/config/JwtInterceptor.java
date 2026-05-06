@@ -2,6 +2,7 @@ package com.zychen.backend.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zychen.backend.dto.response.ApiResponse;
+import com.zychen.backend.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -17,12 +18,14 @@ import java.nio.charset.StandardCharsets;
  * JWT 校验：解析 {@code Authorization: Bearer &lt;token&gt;}，将 {@code userId} 写入 request 属性。
  * <p>
  * 登录、注册等 {@code /api/auth/**} 由 {@link WebConfig} 排除，不进入本拦截器。
+ * Token 校验委托 {@link AuthService#validateToken(String)}，包含登出黑名单。
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtInterceptor implements HandlerInterceptor {
 
+    private final AuthService authService;
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
 
@@ -41,7 +44,7 @@ public class JwtInterceptor implements HandlerInterceptor {
         }
 
         String token = auth.substring(7).trim();
-        if (token.isEmpty() || !jwtUtil.validateToken(token)) {
+        if (token.isEmpty() || !authService.validateToken(token)) {
             writeJson(response, HttpServletResponse.SC_UNAUTHORIZED, "Token无效或已过期");
             return false;
         }
