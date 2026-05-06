@@ -76,6 +76,66 @@ class ApiClient {
     }
   }
 
+  Map<String, String> _redactHeaders(Map<String, String> headers) {
+    return headers.map((key, value) {
+      if (key.toLowerCase() == 'authorization') {
+        return MapEntry(key, 'Bearer ***');
+      }
+      return MapEntry(key, value);
+    });
+  }
+
+  Map<String, dynamic> _redactRequestBody(Map<String, dynamic> data) {
+    const sensitiveKeys = {'password', 'token', 'authorization'};
+    return data.map((key, value) {
+      if (sensitiveKeys.contains(key.toLowerCase())) {
+        return MapEntry(key, '***');
+      }
+      return MapEntry(key, value);
+    });
+  }
+
+  dynamic _redactSensitiveJson(dynamic value) {
+    const sensitiveKeys = {
+      'password',
+      'token',
+      'authorization',
+      'accessToken',
+      'refreshToken',
+    };
+
+    if (value is Map<String, dynamic>) {
+      return value.map((key, nestedValue) {
+        if (sensitiveKeys.contains(key) ||
+            sensitiveKeys.contains(key.toLowerCase())) {
+          return MapEntry(key, '***');
+        }
+        return MapEntry(key, _redactSensitiveJson(nestedValue));
+      });
+    }
+
+    if (value is List) {
+      return value.map(_redactSensitiveJson).toList();
+    }
+
+    return value;
+  }
+
+  String _redactResponseBody(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      return jsonEncode(_redactSensitiveJson(decoded));
+    } catch (_) {
+      return body;
+    }
+  }
+
+  void _debugLog(String message) {
+    if (kDebugMode) {
+      debugPrint(message);
+    }
+  }
+
   Future<Map<String, dynamic>> _request({
     required String method,
     required String path,
@@ -91,9 +151,9 @@ class ApiClient {
         .replace(queryParameters: normalizedQueryParams);
     final headers = await _getHeaders(needAuth: needAuth);
 
-    debugPrint('🔵 [请求] $method $url');
-    debugPrint('🔵 [请求头] $headers');
-    if (data != null) debugPrint('🔵 [请求体] $data');
+    _debugLog('请求: $method $url');
+    _debugLog('请求头: ${_redactHeaders(headers)}');
+    if (data != null) _debugLog('请求体: ${_redactRequestBody(data)}');
 
     http.Response response;
 
@@ -126,9 +186,9 @@ class ApiClient {
       throw ApiException(code: -1, message: '网络连接失败，请检查网络设置');
     }
 
-    debugPrint('🟢 [响应状态] ${response.statusCode}');
-    debugPrint('🟢 [响应头] ${response.headers}');
-    debugPrint('🟢 [响应体] ${response.body}');
+    _debugLog('响应状态: ${response.statusCode}');
+    _debugLog('响应头: ${response.headers}');
+    _debugLog('响应体: ${_redactResponseBody(response.body)}');
 
     Map<String, dynamic> json;
     try {
