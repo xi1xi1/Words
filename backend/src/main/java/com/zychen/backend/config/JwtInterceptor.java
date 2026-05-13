@@ -17,7 +17,8 @@ import java.nio.charset.StandardCharsets;
 /**
  * JWT 校验：解析 {@code Authorization: Bearer &lt;token&gt;}，将 {@code userId} 写入 request 属性。
  * <p>
- * 登录、注册等 {@code /api/auth/**} 由 {@link WebConfig} 排除，不进入本拦截器。
+ * 登录、注册路径由 {@link WebConfig} 按 URL 排除（含 {@code OPTIONS} 预检与 {@code POST}）。
+ * 其余路径若方法为 {@code OPTIONS}，本拦截器直接放行，供 CORS 预检使用。
  * Token 校验委托 {@link AuthService#validateToken(String)}，包含登出黑名单。
  */
 @Slf4j

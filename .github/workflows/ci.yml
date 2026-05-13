@@ -110,13 +110,12 @@ jobs:
           java-version: "17"
           cache: maven
 
-      - name: Install MySQL client
-        run: sudo apt-get update && sudo apt-get install -y mysql-client
-
+      # 不再 apt 安装 mysql-client（Azure 源常慢/超时）；用与 services 同版本的镜像自带客户端执行 init.sql
       - name: Initialize test database
         run: |
-          mysql -h 127.0.0.1 -uroot -p123456 -e "SELECT 1"
-          mysql -h 127.0.0.1 -uroot -p123456 < init.sql
+          docker run --rm --network host \
+            -v "${GITHUB_WORKSPACE}:/work" -w /work mysql:8.0 \
+            sh -c 'mysql -h 127.0.0.1 -uroot -p123456 -e "SELECT 1" && mysql -h 127.0.0.1 -uroot -p123456 < init.sql'
 
       - name: Run backend tests with JaCoCo
         run: |

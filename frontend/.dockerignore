@@ -1,0 +1,15 @@
+.dart_tool/
+build/
+.git
+.gitignore
+**/.env
+**/.env.*
+*.md
+coverage/
+test/
+
+android/
+ios/
+linux/
+macos/
+windows/

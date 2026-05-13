@@ -1,5 +1,6 @@
 package com.zychen.backend.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zychen.backend.config.JwtUtil;
 import com.zychen.backend.dto.request.ChallengeStartRequest;
@@ -12,7 +13,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -90,25 +93,38 @@ public class ChallengeControllerTest {
     }
 
     /**
-     * 测试4：提交闯关结果成功
+     * 测试4：提交闯关结果成功（须先 start 拿到 challengeId 与每题 correctIndex）
      */
     @Test
     void submitChallenge_success() throws Exception {
-        List<ChallengeSubmitRequest.AnswerItem> answers = new ArrayList<>();
-        ChallengeSubmitRequest.AnswerItem answer1 = new ChallengeSubmitRequest.AnswerItem();
-        answer1.setQuestionId(1L);
-        answer1.setSelectedIndex(0);
-        answer1.setTimeSpent(8);
-        answers.add(answer1);
+        ChallengeStartRequest startReq = new ChallengeStartRequest();
+        startReq.setLevelType(1);
+        MvcResult startMvc = mockMvc.perform(post("/api/challenge/start")
+                        .header("Authorization", bearerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(startReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andReturn();
 
-        ChallengeSubmitRequest.AnswerItem answer2 = new ChallengeSubmitRequest.AnswerItem();
-        answer2.setQuestionId(2L);
-        answer2.setSelectedIndex(0);
-        answer2.setTimeSpent(12);
-        answers.add(answer2);
+        String startBody = startMvc.getResponse().getContentAsString(StandardCharsets.UTF_8);
+        JsonNode root = objectMapper.readTree(startBody);
+        JsonNode data = root.get("data");
+        String challengeId = data.get("challengeId").asText();
+        JsonNode questions = data.get("questions");
+
+        List<ChallengeSubmitRequest.AnswerItem> answers = new ArrayList<>();
+        for (int i = 0; i < questions.size(); i++) {
+            JsonNode q = questions.get(i);
+            ChallengeSubmitRequest.AnswerItem a = new ChallengeSubmitRequest.AnswerItem();
+            a.setQuestionId(q.get("id").asLong());
+            a.setSelectedIndex(q.get("correctIndex").asInt());
+            a.setTimeSpent(1);
+            answers.add(a);
+        }
 
         ChallengeSubmitRequest request = new ChallengeSubmitRequest();
-        request.setChallengeId("ch_1701234567890");
+        request.setChallengeId(challengeId);
         request.setLevelType(1);
         request.setAnswers(answers);
 
