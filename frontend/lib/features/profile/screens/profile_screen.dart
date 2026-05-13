@@ -524,7 +524,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       icon: Icons.bookmark_rounded,
       iconColor: _blue,
       iconBg: const Color(0xFFE8EEFD),
-      count: _wordbookCount == 0 ? 128 : _wordbookCount,
+      count: _wordbookCount,
       title: '生词本',
       subtitle: '收藏的生词，随时回顾重点单词',
       onTap: () => context.push('/wordbook'),
@@ -549,6 +549,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
+            color: Colors.white,
             borderRadius: BorderRadius.circular(18),
             boxShadow: _cardShadow,
           ),
