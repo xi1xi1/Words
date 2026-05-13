@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.HashMap;
@@ -38,8 +39,8 @@ class ChallengeServiceImplTest {
     private WordMapper wordMapper;
     @Mock
     private UserMapper userMapper;
-    @Mock
-    private ObjectMapper objectMapper;
+    @Spy
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
     private ChallengeServiceImpl challengeService;
