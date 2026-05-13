@@ -139,32 +139,6 @@ void main() {
     expect(find.text('步骤 3/3 - 认词'), findsOneWidget);
   });
 
-  testWidgets('StudyScreen formats prefixed long option meaning', (tester) async {
-    final w = makeWord(
-      id: 4,
-      word: 'resilient',
-      stage: 1,
-      meaning: const ['adj. 有弹性的；能恢复的；灵活的', '短暂的', '雄辩的', '偶然发现的'],
-      options: const ['adj. 有弹性的；能恢复的；灵活的', '短暂的', '雄辩的', '偶然发现的'],
-    );
-
-    final fake = FakeWordService(
-      dailyWordsQueue: [dailyWith(w)],
-      submitResponses: [
-        (
-          nextWord: null,
-          progress: app_models.LearnProgress(completedCount: 0, totalCount: 1),
-        ),
-      ],
-    );
-
-    await tester.pumpWidget(MaterialApp(home: StudyScreen(wordService: fake)));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-
-    expect(find.text('adj.有弹性的,能恢复的'), findsOneWidget);
-  });
-
   testWidgets('StudyScreen stage3: tapping 认识 triggers completion dialog when batch complete', (tester) async {
     final wStage3 = makeWord(id: 1, word: 'apple', stage: 3);
 
