@@ -14,7 +14,6 @@ class LeaderboardScreen extends StatefulWidget {
 class _LeaderboardScreenState extends State<LeaderboardScreen> {
   final LeaderboardService _service = LeaderboardService();
 
-  int _tab = 2;
   bool _loading = true;
   LeaderboardResponse? _data;
   String _errorMessage = '';
@@ -32,8 +31,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
-      final type = _tab == 0 ? 'daily' : (_tab == 1 ? 'weekly' : 'total');
-      final result = await _service.getLeaderboard(type: type, limit: 50);
+      final result = await _service.getLeaderboard(type: 'total', limit: 50);
       if (mounted) {
         setState(() {
           _data = result;
@@ -62,10 +60,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       body: Column(
         children: [
           _header(context),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: _tabBar(),
-          ),
           if (_loading)
             const Expanded(child: Center(child: CircularProgressIndicator()))
           else if (_errorMessage.isNotEmpty)
@@ -146,46 +140,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _tabBar() {
-    final labels = ['今日', '本周', '总榜'];
-    return Row(
-      children: List.generate(3, (i) {
-        final sel = _tab == i;
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(left: i == 0 ? 0 : 8),
-            child: Material(
-              color: sel ? _primary : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              child: InkWell(
-                onTap: () => setState(() => _tab = i),
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: sel ? _primary : const Color(0xFFE0E0E0),
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    labels[i],
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: sel ? Colors.white : const Color(0xFF333333),
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      }),
     );
   }
 
