@@ -201,8 +201,9 @@ class _HomeContentState extends State<HomeContent> {
     final isDark = theme.brightness == Brightness.dark;
     final onSurface = theme.colorScheme.onSurface;
     final muted = isDark ? const Color(0xFF9AA3AF) : _muted;
+    final borderColor = isDark ? const Color(0xFF2F3540) : const Color(0xFFE6EAF2);
     return Material(
-      color: theme.colorScheme.surface,
+      color: Colors.white,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -211,7 +212,7 @@ class _HomeContentState extends State<HomeContent> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
+            border: Border.all(color: borderColor),
           ),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Icon(icon, color: color),
@@ -239,7 +240,7 @@ class _HomeContentState extends State<HomeContent> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 14, offset: const Offset(0, 6))],
       ),

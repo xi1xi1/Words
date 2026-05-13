@@ -28,6 +28,38 @@ class _ReviewScreenState extends State<ReviewScreen> {
   bool _answered = false;
   bool _isCorrect = false;
 
+  String _formatOptionMeaning(String text) {
+    final cleaned = text
+        .replaceAll(RegExp(r'\\+u0026', caseSensitive: false), '/')
+        .replaceAll(RegExp(r'u0026', caseSensitive: false), '/')
+        .replaceAll(RegExp(r'\s*/\s*'), '/');
+    final normalized = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normalized.isEmpty) return text;
+
+    final segments = normalized
+        .split(RegExp(r'(?=(?:^|\s)[a-zA-Z]+\.)'))
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    final primarySegment = segments.length > 1
+        ? segments.join(' ')
+        : (segments.isNotEmpty ? segments.first : normalized);
+
+    final match = RegExp(r'^(?<prefix>[a-zA-Z]+\.)\s*(?<rest>.+)$').firstMatch(primarySegment);
+    final prefix = match?.namedGroup('prefix');
+    final rest = (match?.namedGroup('rest') ?? primarySegment).trim();
+    final items = rest
+        .split(RegExp(r'[,，；;]'))
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+
+    if (items.length <= 2) return primarySegment;
+
+    final truncated = items.take(2).join(',');
+    return prefix == null ? truncated : '$prefix$truncated';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -232,6 +264,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
               const SizedBox(height: 24),
               ...List.generate(_options.length, (index) {
                 final option = _options[index];
+                final displayOption = _formatOptionMeaning(option);
                 final isSelected = _selectedIndex == index;
                 final isCorrectAnswer = index == _correctIndex;
                 Color? bgColor;
@@ -256,7 +289,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                       decoration: BoxDecoration(color: bgColor ?? Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: borderColor, width: _answered && (isCorrectAnswer || isSelected) ? 2 : 1)),
                       child: Row(children: [
-                        Expanded(child: Text(option, style: TextStyle(fontSize: 16, color: textColor, height: 1.4))),
+                        Expanded(child: Text(displayOption, style: TextStyle(fontSize: 16, color: textColor, height: 1.4))),
                         if (_answered && isCorrectAnswer) const Icon(Icons.check_circle, color: Color(0xFF6BCB77), size: 24),
                         if (_answered && isSelected && !isCorrectAnswer) const Icon(Icons.cancel, color: Color(0xFFEF5350), size: 24),
                       ]),
