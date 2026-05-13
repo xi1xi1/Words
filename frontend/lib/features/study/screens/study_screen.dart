@@ -49,6 +49,36 @@ class _StudyScreenState extends State<StudyScreen> {
     '有弹性的；能恢复的',
   ];
 
+  String _formatOptionMeaning(String text) {
+    final cleaned = text
+        .replaceAll(RegExp(r'\\+u0026', caseSensitive: false), '/')
+        .replaceAll(RegExp(r'u0026', caseSensitive: false), '/')
+        .replaceAll(RegExp(r'\s*/\s*'), '/');
+    final normalized = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normalized.isEmpty) return text;
+
+    final segments = normalized
+        .split(RegExp(r'(?=(?:^|\s)[a-zA-Z]+\.)'))
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    final primarySegment = segments.isNotEmpty ? segments.first : normalized;
+
+    final match = RegExp(r'^(?<prefix>[a-zA-Z]+\.)\s*(?<rest>.+)$').firstMatch(primarySegment);
+    final prefix = match?.namedGroup('prefix');
+    final rest = (match?.namedGroup('rest') ?? primarySegment).trim();
+    final items = rest
+        .split(RegExp(r'[,，；;]'))
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+
+    if (items.length <= 2) return primarySegment;
+
+    final truncated = items.take(2).join(',');
+    return prefix == null ? truncated : '$prefix$truncated';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -609,6 +639,7 @@ class _StudyScreenState extends State<StudyScreen> {
   }
 
   Widget _buildOptionButton(int index, String text) {
+    final displayText = _formatOptionMeaning(text);
     final isSelected = _selectedOptionIndex == index;
     final isCorrect = index == _correctOptionIndex;
     final showCorrect = _showResult && isCorrect;
@@ -650,7 +681,7 @@ class _StudyScreenState extends State<StudyScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    text,
+                    displayText,
                     style: TextStyle(fontSize: 15, color: textColor, height: 1.35),
                   ),
                 ),
