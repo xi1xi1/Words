@@ -47,6 +47,36 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> {
   static const _success = Color(0xFF2EAF62);
   static const _danger = Color(0xFFE24A4A);
 
+  String _formatOptionMeaning(String text) {
+    final cleaned = text
+        .replaceAll(RegExp(r'\\+u0026', caseSensitive: false), '/')
+        .replaceAll(RegExp(r'u0026', caseSensitive: false), '/')
+        .replaceAll(RegExp(r'\s*/\s*'), '/');
+    final normalized = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normalized.isEmpty) return text;
+
+    final segments = normalized
+        .split(RegExp(r'(?=(?:^|\s)[a-zA-Z]+\.)'))
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    final primarySegment = segments.isNotEmpty ? segments.first : normalized;
+
+    final match = RegExp(r'^(?<prefix>[a-zA-Z]+\.)\s*(?<rest>.+)$').firstMatch(primarySegment);
+    final prefix = match?.namedGroup('prefix');
+    final rest = (match?.namedGroup('rest') ?? primarySegment).trim();
+    final items = rest
+        .split(RegExp(r'[,，；;]'))
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+
+    if (items.length <= 2) return primarySegment;
+
+    final truncated = items.take(2).join(',');
+    return prefix == null ? truncated : '$prefix$truncated';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -337,6 +367,7 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> {
   }
 
   Widget _optionTile(String text, int index) {
+    final displayText = _formatOptionMeaning(text);
     final sel = _selectedIndex == index;
     final currentQuestion = widget.questions[_currentIndex];
     final showResult = _selectedIndex != null;
@@ -360,7 +391,7 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> {
           ),
         ),
         child: Text(
-          text,
+          displayText,
           textAlign: TextAlign.center,
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
@@ -381,6 +412,7 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> {
   }
 
   Widget _optionTileFullWidth(String text, int index) {
+    final displayText = _formatOptionMeaning(text);
     final sel = _selectedIndex == index;
     final currentQuestion = widget.questions[_currentIndex];
     final showResult = _selectedIndex != null;
@@ -404,7 +436,7 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> {
           ),
         ),
         child: Text(
-          text,
+          displayText,
           style: TextStyle(
             fontSize: 15,
             color: showResult
