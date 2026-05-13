@@ -147,7 +147,9 @@ out/
 **/*.p12
 **/*.jks
 **/*.keystore
-**/secrets/
+# secrets/ 下仅提交 README；密码文件勿入库（见 secrets/README.md）
+secrets/*
+!secrets/README.md
 **/credentials/
 **/secret.properties
 **/private/
@@ -158,8 +160,7 @@ out/
 **/build/
 **/dist/
 
-# Docker
-**/.dockerignore
+# Docker（允许提交各模块 .dockerignore；勿忽略整个类名）
 #**/Dockerfile
 #**/docker-compose*.yml
 **/*.docker
