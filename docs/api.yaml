@@ -10,6 +10,16 @@ info:
     ## 统一响应格式
     - 成功: `{"code": 200, "message": "success", "data": {...}}`
     - 错误: `{"code": 400, "message": "错误信息", "errors": [...]}`
+    
+    ## 浏览器跨域（CORS）
+    后端对 `/api/**` 启用 CORS，允许的条目由 `app.cors.allowed-origins`（逗号分隔的 **Origin 模式**，Spring `allowedOriginPatterns`）决定。
+    必须与浏览器请求头 **`Origin`（前端页面地址）** 匹配，而不是「接口 Base URL 的主机名」。
+    例如：Flutter Web 在 `http://localhost:58867`，接口请求发到 `http://172.20.10.2:8080` 时，`Origin` 仍是 `http://localhost:58867`；
+    若仅配置了「后端 IP」模式（如 `http://172.20.10.2:*`）而未包含 `http://localhost:*`，而浏览器 `Origin` 仍为 `http://localhost:某端口`（Flutter Web、端口转发常见），预检会失败且响应中可能没有 `Access-Control-Allow-Origin`。
+    默认 `app.cors.merge-localhost-patterns=true`：在自定义 `app.cors.allowed-origins` 解析结果上**再并入** `http://localhost:*` 与 `http://127.0.0.1:*`（去重）；生产环境若需严格白名单可设为 `false`。
+    本地调试若需允许任意来源，可设置 `app.cors.allow-all=true`（或 `APP_CORS_ALLOW_ALL=true`）；**切勿在生产开启**。
+    Flutter Web 端口随机，本地开发建议在配置中包含 `http://localhost:*` 与 `http://127.0.0.1:*`；未配置时后端会使用上述开发默认值（生产务必显式配置）。
+    JWT 拦截器对任意路径的 `OPTIONS` 直接放行；`/api/auth/login`、`/api/auth/register` 亦在拦截器注册中按路径排除（预检与业务请求均不校验 Token）。
   version: 1.0.0
   contact:
     name: 背了么团队
@@ -314,6 +324,8 @@ components:
             type: string
         correctIndex:
           type: integer
+          description: |
+            正确答案在 `options` 数组中的下标（0~3）。服务端在组题后会打乱 `options` 顺序，该字段与打乱后的列表一致，**不保证恒为 0**。
 
     ChallengeStartResponse:
       type: object
@@ -797,6 +809,9 @@ paths:
       tags:
         - Challenge
       summary: 开始闯关
+      description: |
+        返回 `questions`：每题 `options` 为 4 个中文释义（已打乱顺序），`correctIndex` 为正确答案在 `options` 中的下标（0~3，**不固定为 0**）。
+        服务端会登记本次 `challengeId` 与标准答案，用于随后 `POST /challenge/submit` 计分；须使用本次返回的 `challengeId` 提交，且每局仅能提交一次。
       operationId: startChallenge
       security:
         - bearerAuth: []
@@ -819,6 +834,9 @@ paths:
       tags:
         - Challenge
       summary: 提交闯关结果
+      description: |
+        `challengeId` 必须与最近一次成功调用的 `POST /challenge/start` 返回的 ID 一致；提交后该会话即失效，不可重复提交。
+        计分规则：将每题的 `selectedIndex` 与该题在组题时的标准下标比对（不再假定「选对 = 选第 0 项」）。
       operationId: submitChallenge
       security:
         - bearerAuth: []
