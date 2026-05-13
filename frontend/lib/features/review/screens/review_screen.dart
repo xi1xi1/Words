@@ -41,7 +41,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
         .map((item) => item.trim())
         .where((item) => item.isNotEmpty)
         .toList();
-    final primarySegment = segments.isNotEmpty ? segments.first : normalized;
+    final primarySegment = segments.length > 1
+        ? segments.join(' ')
+        : (segments.isNotEmpty ? segments.first : normalized);
 
     final match = RegExp(r'^(?<prefix>[a-zA-Z]+\.)\s*(?<rest>.+)$').firstMatch(primarySegment);
     final prefix = match?.namedGroup('prefix');

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../../core/providers/wordbook_provider.dart';
 import '../../../models/wordbook_model.dart';
 
@@ -30,11 +31,20 @@ class _WordbookScreenState extends State<WordbookScreen> {
   }
 
   Future<void> _removeWord(WordbookWord word) async {
-    await context.read<WordbookProvider>().removeWord(word.id);
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('已从生词本移除 ${word.word}')));
+    final wid = word.wordId;
+    if (wid <= 0) return;
+    try {
+      await context.read<WordbookProvider>().removeWord(wid);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已从生词本移除 ${word.word}')),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+      );
+    }
   }
 
   void _openWordDetail(WordbookWord word) {
