@@ -80,6 +80,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _header(BuildContext context) {
+    final user = context.watch<UserProvider>().user;
+    final rawName = (user?['name'] as String?)?.trim();
+    final username = (user?['username'] as String?)?.trim() ?? '';
+    final displayName = (rawName != null && rawName.isNotEmpty)
+        ? rawName
+        : (username.isNotEmpty ? username : '用户');
+    final userId = (user?['id'] as num?)?.toInt();
+    final idText = userId != null && userId > 0 ? 'ID: $userId' : 'ID: —';
+
+    String avatarLetter = 'U';
+    if (displayName != '用户') {
+      final first = String.fromCharCode(displayName.runes.first);
+      avatarLetter = first.length == 1 && RegExp(r'[a-z]', caseSensitive: false).hasMatch(first)
+          ? first.toUpperCase()
+          : first;
+    }
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(8, MediaQuery.paddingOf(context).top + 4, 16, 24),
@@ -104,28 +121,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 height: 52,
                 decoration: const BoxDecoration(color: Color(0xFFFF9F43), shape: BoxShape.circle),
                 alignment: Alignment.center,
-                child: const Text(
-                  'U',
-                  style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                child: Text(
+                  avatarLetter,
+                  style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(width: 14),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '学习者',
-                      style: TextStyle(
+                      displayName,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
-                      'ID: 123456',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                      idText,
+                      style: const TextStyle(color: Colors.white70, fontSize: 14),
                     ),
                   ],
                 ),

@@ -62,7 +62,10 @@ class _StudyScreenState extends State<StudyScreen> {
         .map((item) => item.trim())
         .where((item) => item.isNotEmpty)
         .toList();
-    final primarySegment = segments.isNotEmpty ? segments.first : normalized;
+    // 换行或空格隔开的「vt. … vi. …」会被切成多段；不能只取第一段否则只剩「vt.&」
+    final primarySegment = segments.length > 1
+        ? segments.join(' ')
+        : (segments.isNotEmpty ? segments.first : normalized);
 
     final match = RegExp(r'^(?<prefix>[a-zA-Z]+\.)\s*(?<rest>.+)$').firstMatch(primarySegment);
     final prefix = match?.namedGroup('prefix');
