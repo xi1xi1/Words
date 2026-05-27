@@ -42,7 +42,7 @@ GET /health          GET /api/**
 数据库 isValid(2s)     业务逻辑 + @Slf4j 日志
     │
     ▼
-JSON 日志 → 控制台 + backend/logs/app.log
+JSON 日志 → 控制台（stdout，Docker / Railway 日志面板）
     │
     ▼
 Micrometer → GET /actuator/metrics
@@ -72,12 +72,11 @@ Micrometer → GET /actuator/metrics
 
 ### 3.3 输出位置
 
-| 目标 | 路径 / 说明 |
-|------|-------------|
-| 控制台 | 启动进程的标准输出（Docker / Railway 日志面板可见） |
-| 文件 | `backend/logs/app.log`（滚动：单文件 10MB，保留 7 天，总量上限约 100MB） |
+| 目标 | 说明 |
+|------|------|
+| 控制台（stdout） | 唯一输出；本地 IDE 终端、Docker、`railway logs` 均可查看 |
 
-> `logs/` 已在根目录 `.gitignore` 中忽略，不会提交到 Git。
+> 不在容器内写 `logs/app.log`：无状态部署（Railway）下目录常不存在，且重启后文件日志会丢失。课程作业要求结构化 JSON 格式，控制台输出即可满足。
 
 ### 3.4 示例
 
@@ -255,7 +254,7 @@ cd backend
 | 步骤 | 命令 / 操作 | 预期 |
 |------|-------------|------|
 | 健康检查 | `curl http://localhost:8080/health` | `status: healthy`，`database: up` |
-| 结构化日志 | 查看控制台或 `backend/logs/app.log` | 每行一条 JSON，含 `time`、`level`、`message`、`module` |
+| 结构化日志 | 查看启动控制台或 Railway Logs | 每行一条 JSON，含 `time`、`level`、`message`、`module` |
 | 指标 | 访问几次 `/health` 后 `curl .../actuator/metrics/beileme.http.requests` | `value` > 0 |
 | 错误指标 | 访问无 Token 的 `/api/words/daily` | `beileme.http.errors` 增加 |
 
@@ -263,7 +262,7 @@ cd backend
 
 1. **Git 提交记录：** `git log --author="你的名字" --oneline --graph`
 2. **健康检查：** 浏览器或终端展示 `/health` JSON
-3. **结构化日志：** 控制台或 `logs/app.log` 中 JSON 行
+3. **结构化日志：** 控制台（或 Railway Logs）中 JSON 行
 
 ---
 
@@ -273,7 +272,7 @@ cd backend
 |----|------|
 | `/health` | 可对负载均衡 / Railway 开放，用于探活 |
 | `/actuator/metrics` | 仅内网或加网关鉴权；勿长期对公网完全开放 |
-| 日志 | 使用平台日志采集（Railway Logs）；容器内 `logs/app.log` 重启后可能丢失，以 stdout 为主 |
+| 日志 | 仅 stdout JSON，使用 Railway Logs / Docker logs 采集 |
 | `app.version` | 发布时通过环境变量与镜像 tag 保持一致 |
 | 告警（可选） | 可用外部服务对 `/health` 做 HTTP 探测；错误率阈值需对接 Prometheus/Grafana 或云平台告警（本仓库未内置） |
 
