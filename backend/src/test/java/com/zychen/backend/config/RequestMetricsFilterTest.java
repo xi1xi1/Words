@@ -32,9 +32,10 @@ class RequestMetricsFilterTest {
 
         filter.doFilter(request, response, chain);
 
-        assertEquals(1.0, meterRegistry.get(RequestMetricsFilter.METRIC_REQUESTS).counter().count());
-        assertTrue(meterRegistry.get(RequestMetricsFilter.METRIC_DURATION).timer().count() > 0);
-        assertEquals(0.0, meterRegistry.get(RequestMetricsFilter.METRIC_ERRORS).counter().count());
+        assertEquals(1.0, meterRegistry.counter(RequestMetricsFilter.METRIC_REQUESTS).count());
+        assertTrue(meterRegistry.timer(RequestMetricsFilter.METRIC_DURATION).count() > 0);
+        // 未发生错误时 errors 计数器可能尚未注册，用 counter() 获取或创建后应为 0
+        assertEquals(0.0, meterRegistry.counter(RequestMetricsFilter.METRIC_ERRORS).count());
     }
 
     @Test
@@ -46,7 +47,7 @@ class RequestMetricsFilterTest {
 
         filter.doFilter(request, response, chain);
 
-        assertEquals(1.0, meterRegistry.get(RequestMetricsFilter.METRIC_ERRORS).counter().count());
+        assertEquals(1.0, meterRegistry.counter(RequestMetricsFilter.METRIC_ERRORS).count());
     }
 
     @Test

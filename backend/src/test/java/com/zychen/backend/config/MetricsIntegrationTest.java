@@ -7,6 +7,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -24,12 +25,9 @@ class MetricsIntegrationTest {
 
     @Test
     void healthRequest_incrementsHttpMetrics() throws Exception {
-        double requestsBefore = meterRegistry.get(RequestMetricsFilter.METRIC_REQUESTS).counter().count();
-
         mockMvc.perform(get("/health")).andExpect(status().isOk());
 
-        double requestsAfter = meterRegistry.get(RequestMetricsFilter.METRIC_REQUESTS).counter().count();
-        assertTrue(requestsAfter > requestsBefore);
+        assertTrue(meterRegistry.counter(RequestMetricsFilter.METRIC_REQUESTS).count() >= 1.0);
     }
 
     @Test
@@ -45,9 +43,14 @@ class MetricsIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("beileme.http.request.duration"));
 
+        // errors 计数器仅在首次 4xx/5xx 后才注册，先触发一次 401
+        mockMvc.perform(get("/api/words/daily"))
+                .andExpect(status().isUnauthorized());
+
         mockMvc.perform(get("/actuator/metrics/beileme.http.errors"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("beileme.http.errors"));
+                .andExpect(jsonPath("$.name").value("beileme.http.errors"))
+                .andExpect(jsonPath("$.measurements[0].value").value(greaterThanOrEqualTo(1.0)));
 
         mockMvc.perform(get("/actuator/metrics/beileme.active.users"))
                 .andExpect(status().isOk())
