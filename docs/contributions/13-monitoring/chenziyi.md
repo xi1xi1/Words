@@ -8,7 +8,7 @@
 
 ### 1. 日志配置
 
-- [x] 结构化日志格式（`backend/pom.xml` 增加 `logstash-logback-encoder`；`backend/src/main/resources/logback-spring.xml` 输出 JSON，字段 `time`、`level`、`message`、`module`，另含 `app`；控制台 + `logs/app.log` 滚动写入）
+- [x] 结构化日志格式（`backend/pom.xml` 增加 `logstash-logback-encoder`；`logback-spring.xml` 仅 `CONSOLE_JSON`，字段 `time`、`level`、`message`、`module`，另含 `app`；适配 Railway/Docker stdout 采集）
 - [x] 日志级别配置（`application.yml` 中 `logging.level.root: INFO`、`com.zychen.backend: DEBUG`）
 
 ### 2. 健康检查
