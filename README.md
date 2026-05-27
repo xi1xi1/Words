@@ -178,6 +178,7 @@ docker compose -f compose.yaml --env-file .env up -d
 | [docs/backend.md](docs/backend.md) | 后端分层、数据库与运行方式 |
 | [docs/database.md](docs/database.md) | ER 与表结构详情 |
 | [docs/api.md](docs/api.md) | API 接口定义 |
+| [docs/deployment.md](docs/deployment.md) | Railway 云平台部署说明 |
 | [docs/design-spec.md](docs/design-spec.md) | UI 设计规范 |
 | [CLAUDE.md](CLAUDE.md) | 代码与协作规范 |
 
