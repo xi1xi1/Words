@@ -107,7 +107,7 @@ Controller 层  →  Service 层  →  Mapper 层  →  MySQL
       ↓
 后端调用 Ark API 
       ↓
-生成例句 / 对话 
+生成联想记忆 / 对话 
       ↓
 保存至数据库并返回前端
 ```
