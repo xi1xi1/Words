@@ -3,6 +3,7 @@ package com.zychen.backend.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -14,7 +15,8 @@ public class RegisterRequest {
     private String username;
 
     @NotBlank(message = "密码不能为空")
-    @Size(min = 6, message = "密码长度至少6位")
+    @Size(min = 8, max = 72, message = "密码长度须在8-72位之间")
+    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$", message = "密码须同时包含至少一个字母和一个数字")
     private String password;
 
     @NotBlank(message = "邮箱不能为空")

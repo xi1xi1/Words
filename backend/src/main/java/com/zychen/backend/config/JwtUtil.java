@@ -9,6 +9,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import jakarta.annotation.PostConstruct;
+
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
@@ -16,14 +19,27 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret:your-secret-key-for-jwt-at-least-256-bits-long}")
+    @Value("${jwt.secret}")
     private String secret;
 
     @Value("${jwt.expiration:86400000}")
     private Long expiration;  // 默认24小时
 
+    @PostConstruct
+    void validateJwtSecret() {
+        if (!StringUtils.hasText(secret)) {
+            throw new IllegalStateException(
+                    "未配置 jwt.secret：请在配置文件（jwt.secret）或环境变量 JWT_SECRET 中设置 HS256 密钥");
+        }
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new IllegalStateException(
+                    "jwt.secret 长度不足：UTF-8 编码后须至少 32 字节以满足 HS256（当前 " + keyBytes.length + " 字节）");
+        }
+    }
+
     private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes());
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     /**

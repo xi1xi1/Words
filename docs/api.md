@@ -81,14 +81,14 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | username | string | 是 | 用户名，3-50位 |
-| password | string | 是 | 密码，至少6位 |
+| password | string | 是 | 密码 8–72 位，须同时包含字母与数字 |
 | email | string | 是 | 邮箱 |
 
 **请求示例：**
 ```json
 {
   "username": "zhangsan",
-  "password": "123456",
+  "password": "Testpass1",
   "email": "zhangsan@example.com"
 }
 ```

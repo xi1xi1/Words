@@ -1,5 +1,6 @@
 package com.zychen.backend.service.impl;
 
+import com.zychen.backend.dto.response.AIMemoryContent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zychen.backend.entity.Word;
 import com.zychen.backend.mapper.WordMapper;
@@ -156,12 +157,66 @@ class AIServiceImplTest {
         assertEquals("[1,2]", invokeRepairCommonJsonIssues("[1,2,]"));
     }
 
+    @Test
+    void extractContent_invalidJson_returnsNull() {
+        ReflectionTestUtils.setField(aiService, "objectMapper", new ObjectMapper());
+        String result = invokeExtractContent("not-json");
+        assertNull(result);
+    }
+
+    @Test
+    void extractContent_noChoicesArray_returnsNull() {
+        ReflectionTestUtils.setField(aiService, "objectMapper", new ObjectMapper());
+        String result = invokeExtractContent("{\"id\":\"x\"}");
+        assertNull(result);
+    }
+
+    @Test
+    void parseMemoryContent_blankSummary_fallsBackToWordAndMeaning() {
+        ReflectionTestUtils.setField(aiService, "objectMapper", new ObjectMapper());
+        AIMemoryContent out = invokeParseMemoryContent(
+                "{\"homophonic\":null,\"morpheme\":null,\"story\":null,\"summary\":\"\",\"notes\":\"n\"}",
+                "abandon",
+                "v. 放弃");
+        assertNotNull(out);
+        assertEquals("abandon：v. 放弃", out.getSummary());
+    }
+
+    @Test
+    void parseMemoryContent_invalidJson_returnsNull() {
+        ReflectionTestUtils.setField(aiService, "objectMapper", new ObjectMapper());
+        AIMemoryContent out = invokeParseMemoryContent("oops", "abandon", "v. 放弃");
+        assertNull(out);
+    }
+
+    @Test
+    void mergeExampleJson_whenSerializationFails_fallsBackToEscapedJsonArray() throws Exception {
+        ReflectionTestUtils.setField(aiService, "objectMapper", objectMapper);
+        when(objectMapper.writeValueAsString(any())).thenThrow(new RuntimeException("serialize fail"));
+
+        String merged = invokeMergeExampleJson(null, "He said \"hi\".");
+
+        assertEquals("[\"He said \\\"hi\\\".\"]", merged);
+    }
+
     private static String invokeNormalizeLikelyJson(String input) {
         return (String) ReflectionTestUtils.invokeMethod(AIServiceImpl.class, "normalizeLikelyJson", input);
     }
 
     private static String invokeRepairCommonJsonIssues(String input) {
         return (String) ReflectionTestUtils.invokeMethod(AIServiceImpl.class, "repairCommonJsonIssues", input);
+    }
+
+    private String invokeExtractContent(String input) {
+        return (String) ReflectionTestUtils.invokeMethod(aiService, "extractContent", input);
+    }
+
+    private AIMemoryContent invokeParseMemoryContent(String jsonContent, String word, String meaning) {
+        return (AIMemoryContent) ReflectionTestUtils.invokeMethod(aiService, "parseMemoryContent", jsonContent, word, meaning);
+    }
+
+    private String invokeMergeExampleJson(String existingJson, String newSentence) {
+        return (String) ReflectionTestUtils.invokeMethod(aiService, "mergeExampleJson", existingJson, newSentence);
     }
 }
 

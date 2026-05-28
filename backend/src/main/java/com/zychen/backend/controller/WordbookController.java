@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 @RequestMapping("/api/wordbook")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class WordbookController {
 

@@ -1,7 +1,9 @@
-# beileme 一键部署：docker compose up -d
-# 复制 .env.example 为 .env 并填写密码等敏感项后再启动
-#
-# 显式项目名：避免项目目录为中文等非 ASCII 时 Compose 推导出的 name 为空而报错
+# 开发环境（Docker Compose V2，默认文件名 compose.yaml）
+# 启动：docker compose -f compose.yaml --env-file .env up -d
+# 说明：后端挂载 ./backend，容器内 mvn spring-boot:run；改 Java 源码后需在宿主机或 IDE 触发编译
+#       更新 target/classes 后，Spring DevTools 会热重启（与纯 Vite 卷挂载行为不同）。
+# 与 docker-compose.yml 共用项目名与卷名 beileme / mysql-data，勿同时起两套占同一端口。
+# 前端：Flutter Web + Nginx（8080）；浏览器访问 http://localhost:${FRONTEND_PORT:-8081}
 
 name: beileme
 
@@ -18,9 +20,7 @@ services:
       TZ: Asia/Shanghai
     volumes:
       - mysql-data:/var/lib/mysql
-      # 仅「首次」创建数据卷时执行；若改表结构需删卷重建：docker compose down -v
       - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
-    # 强制连接使用 utf8mb4，避免客户端（含部分 JDBC 握手）声明 latin1 导致存取转码错乱
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_general_ci
@@ -43,58 +43,51 @@ services:
       - redis-data:/data
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    image: beileme-backend:local
-    container_name: beileme-backend
-    restart: unless-stopped
+    image: maven:3.9-eclipse-temurin-17-alpine
+    container_name: beileme-backend-dev
+    working_dir: /workspace
+    volumes:
+      - ./backend:/workspace
+      - maven-repo:/root/.m2
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     environment:
-      JAVA_OPTS: "-Dfile.encoding=UTF-8"
+      JAVA_TOOL_OPTIONS: "-Dfile.encoding=UTF-8"
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-beileme}?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-root}
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
       SPRING_MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health
-      # 可选：浏览器前端 Origin 模式（逗号分隔），覆盖 jar 内 app.cors.allowed-origins，例如：
-      # APP_CORS_ALLOWED_ORIGINS: http://localhost:*,http://127.0.0.1:*,https://app.example.com
-      LOGGING_LEVEL_COM_ZYCHEN_BACKEND: INFO
+      LOGGING_LEVEL_COM_ZYCHEN_BACKEND: ${LOGGING_LEVEL_COM_ZYCHEN_BACKEND:-INFO}
       JWT_SECRET: ${JWT_SECRET:?请在 .env 中设置 JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+    command: ["mvn", "-B", "-DskipTests", "spring-boot:run"]
     depends_on:
       mysql:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8080/health || exit 1"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 60s
+      disable: true
 
-  # Flutter Web 静态资源（API 地址仍由前端代码 baseUrl 决定，一般为宿主机映射的后端端口）
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    image: beileme-frontend:local
-    container_name: beileme-frontend
+    image: beileme-frontend:dev
+    container_name: beileme-frontend-dev
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-8081}:8080"
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 30s
+      start_period: 120s
 
 volumes:
   mysql-data:
   redis-data:
-
-
+  maven-repo:

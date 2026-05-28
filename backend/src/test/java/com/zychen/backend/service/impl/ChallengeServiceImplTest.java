@@ -19,9 +19,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -36,8 +39,8 @@ class ChallengeServiceImplTest {
     private WordMapper wordMapper;
     @Mock
     private UserMapper userMapper;
-    @Mock
-    private ObjectMapper objectMapper;
+    @Spy
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
     private ChallengeServiceImpl challengeService;
@@ -69,7 +72,9 @@ class ChallengeServiceImplTest {
         assertEquals(5, resp.getQuestions().size());
         assertEquals(60, resp.getTimeLimit());
         assertEquals(4, resp.getQuestions().get(0).getOptions().size());
-        assertEquals(0, resp.getQuestions().get(0).getCorrectIndex());
+        var q0 = resp.getQuestions().get(0);
+        assertTrue(q0.getCorrectIndex() >= 0 && q0.getCorrectIndex() < 4);
+        assertEquals("m1", q0.getOptions().get(q0.getCorrectIndex()));
     }
 
     @Test
@@ -85,11 +90,25 @@ class ChallengeServiceImplTest {
     }
 
     @Test
+    void submitChallenge_noSession_throws400() {
+        ChallengeSubmitRequest req = new ChallengeSubmitRequest();
+        req.setChallengeId("ch_not_started");
+        req.setLevelType(1);
+        req.setAnswers(List.of(answer(1L, 0, 1)));
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> challengeService.submitChallenge(1L, req));
+        assertEquals(400, ex.getCode());
+        assertEquals("闯关会话无效或已过期，请重新开始闯关", ex.getMessage());
+    }
+
+    @Test
     void submitChallenge_objectMapperFails_throws500() throws Exception {
         ChallengeSubmitRequest req = new ChallengeSubmitRequest();
         req.setChallengeId("c1");
         req.setLevelType(1);
         req.setAnswers(List.of(answer(1L, 0, 1)));
+
+        challengeService.seedChallengeCorrectIndices("c1", Map.of(1L, 0));
 
         when(objectMapper.writeValueAsString(any())).thenThrow(new JsonProcessingException("boom") {});
 
@@ -104,6 +123,8 @@ class ChallengeServiceImplTest {
         req.setChallengeId("c1");
         req.setLevelType(1);
         req.setAnswers(List.of(answer(1L, 0, 1)));
+
+        challengeService.seedChallengeCorrectIndices("c1", Map.of(1L, 0));
 
         when(objectMapper.writeValueAsString(any())).thenReturn("{\"ok\":true}");
         doAnswer(inv -> {
@@ -122,11 +143,12 @@ class ChallengeServiceImplTest {
         ChallengeSubmitRequest req = new ChallengeSubmitRequest();
         req.setChallengeId("c1");
         req.setLevelType(1);
-        // All selectedIndex==0 treated as correct
         req.setAnswers(List.of(
                 answer(1L, 0, 8),
                 answer(2L, 0, 12)
         ));
+
+        challengeService.seedChallengeCorrectIndices("c1", new HashMap<>(Map.of(1L, 0, 2L, 0)));
 
         when(objectMapper.writeValueAsString(any())).thenReturn("{\"ok\":true}");
         doAnswer(inv -> 1).when(battleRecordMapper).insert(any());

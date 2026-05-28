@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 @RequestMapping("/api/challenge")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class ChallengeController {
 

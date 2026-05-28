@@ -1,0 +1,28 @@
+# 构建产物（由多阶段 builder 生成）
+target/
+
+# 版本控制
+.git
+.gitignore
+**/.git
+
+# 密钥与本地环境（勿打入镜像）
+.env
+.env.*
+
+# 文档与报告
+*.md
+htmlReport/
+
+# IDE
+.idea
+*.iml
+.vscode
+.settings
+.classpath
+.project
+
+# 测试与杂项
+src/test/
+*.log
+*.tmp

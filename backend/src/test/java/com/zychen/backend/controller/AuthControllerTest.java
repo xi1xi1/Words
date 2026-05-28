@@ -36,7 +36,7 @@ public class AuthControllerTest {
     void register_success() throws Exception {
         RegisterRequest request = new RegisterRequest();
         request.setUsername("u_" + UUID.randomUUID().toString().substring(0, 8));
-        request.setPassword("123456");
+        request.setPassword("Testpass1");
         request.setEmail("test-" + UUID.randomUUID() + "@example.com");
 
         mockMvc.perform(post("/api/auth/register")
@@ -57,7 +57,7 @@ public class AuthControllerTest {
         // 先注册一个用户
         RegisterRequest request1 = new RegisterRequest();
         request1.setUsername("existinguser");
-        request1.setPassword("123456");
+        request1.setPassword("Testpass1");
         request1.setEmail("existing@example.com");
 
         mockMvc.perform(post("/api/auth/register")
@@ -67,7 +67,7 @@ public class AuthControllerTest {
         // 再用相同用户名注册
         RegisterRequest request2 = new RegisterRequest();
         request2.setUsername("existinguser");
-        request2.setPassword("123456");
+        request2.setPassword("Testpass1");
         request2.setEmail("another@example.com");
 
         mockMvc.perform(post("/api/auth/register")
@@ -85,7 +85,7 @@ public class AuthControllerTest {
     void register_failed_username_too_short() throws Exception {
         RegisterRequest request = new RegisterRequest();
         request.setUsername("ab");  // 只有2位
-        request.setPassword("123456");
+        request.setPassword("Testpass1");
         request.setEmail("test@example.com");
 
         mockMvc.perform(post("/api/auth/register")
@@ -99,11 +99,12 @@ public class AuthControllerTest {
      */
     @Test
     void login_success() throws Exception {
-        // 先注册一个用户
+        String username = "login_ok_" + UUID.randomUUID().toString().substring(0, 8);
+        // 先注册一个用户（随机用户名，避免库中旧账号密码与本次不一致）
         RegisterRequest registerRequest = new RegisterRequest();
-        registerRequest.setUsername("loginuser");
-        registerRequest.setPassword("123456");
-        registerRequest.setEmail("login@example.com");
+        registerRequest.setUsername(username);
+        registerRequest.setPassword("Testpass1");
+        registerRequest.setEmail("login-" + UUID.randomUUID() + "@example.com");
 
         mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -111,8 +112,8 @@ public class AuthControllerTest {
 
         // 登录
         LoginRequest loginRequest = new LoginRequest();
-        loginRequest.setUsername("loginuser");
-        loginRequest.setPassword("123456");
+        loginRequest.setUsername(username);
+        loginRequest.setPassword("Testpass1");
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -121,7 +122,7 @@ public class AuthControllerTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.message").value("登录成功"))
                 .andExpect(jsonPath("$.data.token").exists())
-                .andExpect(jsonPath("$.data.userInfo.username").value("loginuser"));
+                .andExpect(jsonPath("$.data.userInfo.username").value(username));
     }
 
     /**
@@ -132,7 +133,7 @@ public class AuthControllerTest {
         // 先注册一个用户
         RegisterRequest registerRequest = new RegisterRequest();
         registerRequest.setUsername("wrongpwduser");
-        registerRequest.setPassword("123456");
+        registerRequest.setPassword("Testpass1");
         registerRequest.setEmail("wrongpwd@example.com");
 
         mockMvc.perform(post("/api/auth/register")
@@ -174,7 +175,8 @@ public class AuthControllerTest {
      */
     @Test
     void logout_success() throws Exception {
-        String token = jwtUtil.generateToken(1L, "jwt_challenge_user");
+        // 使用独立 subject，避免与闯关等测试共用 (1L, jwt_challenge_user) 时在秒级 iat 下 token 撞车进黑名单
+        String token = jwtUtil.generateToken(999999L, "logout_test_only");
 
         mockMvc.perform(post("/api/auth/logout")
                         .header("Authorization", "Bearer " + token))

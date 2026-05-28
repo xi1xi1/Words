@@ -25,10 +25,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -40,6 +42,13 @@ public class ChallengeServiceImpl implements ChallengeService {
     private static final int MAX_LEVEL = 3;
     private static final int DEFAULT_RANK_LIMIT = 50;
     private static final int MAX_PAGE_SIZE = 100;
+
+    /**
+     * 开始闯关时写入、提交时 remove：questionId（即单词 id）→ 打乱后正确选项下标。
+     * 避免仅依赖「selectedIndex==0」判分（与选项顺序强耦合）。
+     */
+    private final ConcurrentHashMap<String, ConcurrentHashMap<Long, Integer>> challengeCorrectIndexByChallengeId =
+            new ConcurrentHashMap<>();
 
     private final BattleRecordMapper battleRecordMapper;
     private final WordMapper wordMapper;
@@ -64,9 +73,17 @@ public class ChallengeServiceImpl implements ChallengeService {
         }
 
         ChallengeStartResponse response = new ChallengeStartResponse();
-        response.setChallengeId("ch_" + levelType + "_" + System.currentTimeMillis());
+        String challengeId = "ch_" + levelType + "_" + System.currentTimeMillis();
+        response.setChallengeId(challengeId);
         response.setQuestions(questions);
         response.setTimeLimit(timeLimitForLevel(levelType));
+
+        ConcurrentHashMap<Long, Integer> keyMap = new ConcurrentHashMap<>();
+        for (ChallengeQuestion q : questions) {
+            keyMap.put(q.getId(), q.getCorrectIndex());
+        }
+        challengeCorrectIndexByChallengeId.put(challengeId, keyMap);
+
         return response;
     }
 
@@ -81,9 +98,21 @@ public class ChallengeServiceImpl implements ChallengeService {
             throw new BusinessException(400, "答案列表不能为空");
         }
 
+        ConcurrentHashMap<Long, Integer> expectedByQuestionId =
+                challengeCorrectIndexByChallengeId.remove(request.getChallengeId());
+        if (expectedByQuestionId == null || expectedByQuestionId.isEmpty()) {
+            throw new BusinessException(400, "闯关会话无效或已过期，请重新开始闯关");
+        }
+
         int totalCount = answers.size();
         int correctCount = (int) answers.stream()
-                .filter(a -> a.getSelectedIndex() != null && a.getSelectedIndex() == 0)
+                .filter(a -> {
+                    if (a.getQuestionId() == null || a.getSelectedIndex() == null) {
+                        return false;
+                    }
+                    Integer expect = expectedByQuestionId.get(a.getQuestionId());
+                    return expect != null && expect.equals(a.getSelectedIndex());
+                })
                 .count();
         double accuracy = (double) correctCount / totalCount;
         int score = (int) (accuracy * 1000);
@@ -250,12 +279,14 @@ public class ChallengeServiceImpl implements ChallengeService {
         List<String> options = new ArrayList<>(4);
         options.add(correct);
         options.addAll(wrongs.subList(0, 3));
+        Collections.shuffle(options);
+        int correctIndex = options.indexOf(correct);
 
         ChallengeQuestion q = new ChallengeQuestion();
         q.setId(target.getId());
         q.setWord(target.getWord());
         q.setOptions(options);
-        q.setCorrectIndex(0);
+        q.setCorrectIndex(correctIndex);
         return q;
     }
 
@@ -311,5 +342,12 @@ public class ChallengeServiceImpl implements ChallengeService {
             case 3 -> "高级场";
             default -> "未知";
         };
+    }
+
+    /**
+     * 同包测试用：注入闯关会话的标准答案下标（未经过 {@link #startChallenge} 时调用）。
+     */
+    void seedChallengeCorrectIndices(String challengeId, Map<Long, Integer> byQuestionId) {
+        challengeCorrectIndexByChallengeId.put(challengeId, new ConcurrentHashMap<>(byQuestionId));
     }
 }
