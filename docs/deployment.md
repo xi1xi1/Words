@@ -281,11 +281,12 @@ Words/
 | 文档 | 说明 |
 |------|------|
 | [docs/contributions/11-docker/chenziyi.md](contributions/11-docker/chenziyi.md) | Dockerfile 与 Compose |
-| [docs/contributions/12-cloud/chenziyi.md](contributions/12-cloud/chenziyi.md) | 云平台部署个人贡献说明 |
+| [docs/contributions/12-cloud/chenziyi.md](contributions/12-cloud/chenziyi.md) | 云平台部署个人贡献说明（后端 / Railway 全栈） |
+| [docs/contributions/12-cloud/zhangxin.md](contributions/12-cloud/zhangxin.md) | 云平台部署个人贡献说明（前端 API 地址 / 线上验证） |
 | [docs/backend.md](backend.md) | 后端运行与配置 |
 | [.env.example](../.env.example) | 环境变量命名对照 |
 
 ---
 
-**维护：** 陈子怡（2312190329）  
+**维护：** 陈子怡（2312190329）、张欣（2312190333）  
 **最后更新：** 2026-05-27
