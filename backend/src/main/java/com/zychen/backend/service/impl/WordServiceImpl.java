@@ -228,19 +228,25 @@ public class WordServiceImpl implements WordService {
     // ==================== 私有方法 ====================
 
     /**
-     * 当前队列中，review_count > 0 视为复习词；否则视为新学词。
+     * 复习词：已掌握（status=1）且 review_count>0，且到期或今日复习中尚未过关。
      */
     private boolean isReviewQueueUserWord(UserWord uw) {
-        if (uw == null) {
+        if (uw == null || !Integer.valueOf(1).equals(uw.getStatus())) {
             return false;
         }
-        if (!Integer.valueOf(0).equals(uw.getStatus())) {
+        if (uw.getReviewCount() == null || uw.getReviewCount() <= 0) {
             return false;
         }
-        if (!Integer.valueOf(0).equals(uw.getTodayMastered())) {
-            return false;
+        if (isDueForReview(uw.getNextReview())) {
+            return true;
         }
-        return uw.getReviewCount() != null && uw.getReviewCount() > 0;
+        return Integer.valueOf(0).equals(uw.getTodayMastered())
+                && uw.getLastStudyTime() != null
+                && uw.getLastStudyTime().toLocalDate().equals(LocalDate.now());
+    }
+
+    private boolean isDueForReview(LocalDateTime nextReview) {
+        return nextReview != null && !nextReview.isAfter(LocalDateTime.now());
     }
 
     /**
@@ -332,9 +338,9 @@ public class WordServiceImpl implements WordService {
                 userWord.setReviewCount(nextReviewCount);
                 userWord.setNextReview(calculateNextReview(nextReviewCount, true));
             } else {
-                // 复习答错：当场继续练，直到答对才出队
+                // 复习答错：保持已掌握，当场继续练直到答对
                 userWord.setTodayMastered(0);
-                userWord.setStatus(0);
+                userWord.setStatus(1);
                 userWord.setReviewCount(currentReviewCount);
                 userWord.setNextReview(LocalDateTime.now());
             }

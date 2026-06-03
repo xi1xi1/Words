@@ -225,7 +225,7 @@ components:
             reviewableWordCount:
               type: integer
               description: |
-                可复习单词数量：`user_word` 中 status=0、review_count>0 且 next_review<=NOW() 的词数（仅查询，不改库表）。
+                可复习单词数量：`user_word` 中 status=1（已掌握）、review_count>0 且 next_review<=NOW() 的词数（仅查询，不改库表）。
               example: 42
 
     LearnResponse:
