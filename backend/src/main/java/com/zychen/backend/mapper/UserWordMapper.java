@@ -81,64 +81,61 @@ public interface UserWordMapper {
     int countPendingNewWords(Long userId);
 
     /**
-     * 统计「可复习」池总量：学习中、今日未掌握、且已进入复习轮次（review_count > 0）。
-     * 与 {@link #getReviewWords} 筛选条件一致（不限于本接口单次 LIMIT）。
+     * 统计「可复习」池总量：已掌握且已进入复习轮次（review_count > 0）。
+     * 与 {@link #countReviewableWords} 一致（到期子集见 countReviewableWords）。
      */
     @Select("SELECT COUNT(*) FROM user_word " +
             "WHERE user_id = #{userId} " +
-            "AND status = 0 " +
-            "AND today_mastered = 0 " +
+            "AND status = 1 " +
             "AND review_count > 0")
     int countPendingReviewWords(Long userId);
 
     /**
-     * 可复习单词数量（不改表结构，仅统计）：已进入间隔重复且 next_review 已到期。
+     * 可复习单词数量：已掌握、已进入间隔重复且 next_review 已到期。
      */
     @Select("SELECT COUNT(*) FROM user_word " +
             "WHERE user_id = #{userId} " +
-            "AND status = 0 " +
+            "AND status = 1 " +
             "AND review_count > 0 " +
             "AND next_review <= NOW()")
     int countReviewableWords(Long userId);
 
     /**
-     * 统计“今日复习答错”的数量（仅复习词，且最后学习时间在今天）
-     * 用于控制复习轮次：只有当前轮全对，才允许进入下一轮复习词。
+     * 统计“今日复习答错”的数量（已掌握、今日本轮未过关、最后学习时间在今天）
      */
     @Select("SELECT COUNT(*) FROM user_word " +
             "WHERE user_id = #{userId} " +
             "AND review_count > 0 " +
-            "AND today_mastered = 1 " +
-            "AND status = 0 " +
+            "AND today_mastered = 0 " +
+            "AND status = 1 " +
             "AND last_study_time IS NOT NULL " +
             "AND DATE(last_study_time) = CURDATE()")
     int countTodayWrongReviewedWords(Long userId);
 
     /**
-     * 获取用户复习词（保留旧接口兼容，按 review_count > 0 判定）
+     * 获取到期复习词：status=1（已掌握）、review_count>0、next_review 已到期。
      */
     @Select("SELECT uw.id, uw.user_id, uw.word_id, uw.status, uw.study_stage, uw.today_mastered, " +
             "uw.review_count, uw.next_review, uw.memory_score, uw.last_study_time, " +
             "uw.create_time, uw.update_time " +
             "FROM user_word uw " +
             "WHERE uw.user_id = #{userId} " +
-            "AND uw.status = 0 " +
-            "AND uw.today_mastered = 0 " +
+            "AND uw.status = 1 " +
             "AND uw.review_count > 0 " +
-            "ORDER BY uw.update_time ASC " +
+            "AND uw.next_review <= NOW() " +
+            "ORDER BY uw.next_review ASC, uw.id ASC " +
             "LIMIT #{limit}")
     List<UserWord> getReviewWords(@Param("userId") Long userId, @Param("limit") Integer limit);
 
     /**
-     * 获取“今日进行中的复习词”（本轮已开始但仍未答对的词）。
-     * 用于实现：先锁定一组复习词，组内未全对前不放行下一组。
+     * 获取“今日进行中的复习词”（本轮复习中答错、尚未过关的词）。
      */
     @Select("SELECT uw.id, uw.user_id, uw.word_id, uw.status, uw.study_stage, uw.today_mastered, " +
             "uw.review_count, uw.next_review, uw.memory_score, uw.last_study_time, " +
             "uw.create_time, uw.update_time " +
             "FROM user_word uw " +
             "WHERE uw.user_id = #{userId} " +
-            "AND uw.status = 0 " +
+            "AND uw.status = 1 " +
             "AND uw.today_mastered = 0 " +
             "AND uw.review_count > 0 " +
             "AND uw.last_study_time IS NOT NULL " +
@@ -183,8 +180,8 @@ public interface UserWordMapper {
     @Select("SELECT COUNT(*) FROM user_word WHERE user_id = #{userId} AND status = 1")
     int countMasteredWords(Long userId);
 
-    /** 待复习：学习中且已到复习时间 */
-    @Select("SELECT COUNT(*) FROM user_word WHERE user_id = #{userId} AND status = 0 AND next_review <= NOW()")
+    /** 待复习：已掌握且已到复习时间 */
+    @Select("SELECT COUNT(*) FROM user_word WHERE user_id = #{userId} AND status = 1 AND review_count > 0 AND next_review <= NOW()")
     int countDueReview(Long userId);
 
     /**
