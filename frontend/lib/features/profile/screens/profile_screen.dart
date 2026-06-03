@@ -1,10 +1,14 @@
 // frontend/lib/features/profile/screens/profile_screen.dart
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../services/study_service.dart';
-import '../../../services/wordbook_service.dart';
+import 'package:provider/provider.dart';
+
 import '../../../core/network/api_exception.dart';
+import '../../../core/providers/wordbook_provider.dart';
 import '../../../models/study_model.dart';
+import '../../../services/study_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,10 +19,10 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final StudyService _studyService = StudyService();
-  final WordbookService _wordbookService = WordbookService();
-  bool _isLoading = true;
+  bool _statsLoading = true;
+  bool _trendLoading = true;
+  bool _calendarLoading = true;
   StudyStats? _stats;
-  int _wordbookCount = 0;
   List<StudyTrend>? _trend;
   List<LearningCalendar> _calendars = [];
 
@@ -31,50 +35,106 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadData();
   }
 
+  int _wordbookCount(BuildContext context) {
+    if (_stats != null) return _stats!.wordbookWords;
+    return context.watch<WordbookProvider>().count;
+  }
+
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    if (!mounted) return;
+    setState(() {
+      _statsLoading = true;
+      _trendLoading = true;
+      _calendarLoading = true;
+    });
+
+    unawaited(_loadStats());
+    unawaited(_loadTrend());
+    unawaited(_loadCalendars());
+  }
+
+  Future<void> _loadStats() async {
     try {
       final stats = await _studyService.getStudyStats();
-      final wordbook = await _wordbookService.getWordbookList();
-      List<StudyTrend>? trend;
-      List<LearningCalendar> calendars = [];
-      try {
-        trend = await _studyService.getStudyTrend(days: 7);
-      } catch (_) {
-        trend = null;
-      }
-      try {
-        final now = DateTime.now();
-        calendars = [];
-        for (int i = 0; i < 3; i++) {
+      if (!mounted) return;
+      setState(() {
+        _stats = stats;
+        _statsLoading = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+      );
+      setState(() => _statsLoading = false);
+    }
+  }
+
+  Future<void> _loadTrend() async {
+    try {
+      final trend = await _studyService.getStudyTrend(days: 7);
+      if (!mounted) return;
+      setState(() {
+        _trend = trend;
+        _trendLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _trend = null;
+        _trendLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadCalendars() async {
+    try {
+      final now = DateTime.now();
+      final calendars = await Future.wait(
+        List.generate(3, (i) {
           final month = now.month - i;
           final year = month > 0 ? now.year : now.year - 1;
           final actualMonth = month > 0 ? month : 12 + month;
-          calendars.add(
-            await _studyService.getStudyCalendar(
-              year: year,
-              month: actualMonth,
-            ),
-          );
-        }
-      } catch (_) {
-        calendars = [];
-      }
+          return _studyService
+              .getStudyCalendar(year: year, month: actualMonth)
+              .catchError(
+                (_) => LearningCalendar(
+                  year: year,
+                  month: actualMonth,
+                  studyDates: const [],
+                ),
+              );
+        }),
+      );
+      if (!mounted) return;
       setState(() {
-        _stats = stats;
-        _wordbookCount = wordbook.length;
-        _trend = trend;
         _calendars = calendars;
+        _calendarLoading = false;
       });
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _calendars = [];
+        _calendarLoading = false;
+      });
     }
+  }
+
+  Widget _sectionLoader({double height = 120}) {
+    return Container(
+      height: height,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: _cardShadow,
+      ),
+      child: const SizedBox(
+        width: 24,
+        height: 24,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+    );
   }
 
   @override
@@ -127,7 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              _buildToolsGrid(),
+              _buildToolsGrid(context),
               const SizedBox(height: 24),
               const Text(
                 '学习数据',
@@ -195,6 +255,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildTrendChart() {
+    if (_trendLoading) {
+      return _sectionLoader(height: 160);
+    }
+
     final counts = _trendCounts;
     final labels = _trendLabels;
     final maxC = counts.isEmpty
@@ -265,6 +329,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   /// 近 4 周学习热力（与设计稿一致）；无专用接口时用本地演示强度
   Widget _buildLearningCalendarCard() {
+    if (_calendarLoading) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.local_fire_department,
+                color: Colors.orange.shade400,
+                size: 22,
+              ),
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text(
+                  '学习日历',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: _navy,
+                  ),
+                ),
+              ),
+              Text(
+                '近4周',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _sectionLoader(height: 200),
+        ],
+      );
+    }
+
     final now = DateTime.now();
     final studyDatesSet = <String>{};
     for (final cal in _calendars) {
@@ -384,17 +482,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildCurrentWordbookCard() {
-    if (_isLoading) {
-      return Container(
-        height: 160,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: _cardShadow,
-        ),
-        child: const CircularProgressIndicator(),
-      );
+    if (_statsLoading) {
+      return _sectionLoader(height: 160);
     }
 
     final totalLearned = _stats?.totalLearned ?? 0;
@@ -519,12 +608,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ),
   ];
 
-  Widget _buildToolsGrid() {
+  Widget _buildToolsGrid(BuildContext context) {
     return _toolCard(
       icon: Icons.bookmark_rounded,
       iconColor: _blue,
       iconBg: const Color(0xFFE8EEFD),
-      count: _wordbookCount,
+      count: _wordbookCount(context),
       title: '生词本',
       subtitle: '收藏的生词，随时回顾重点单词',
       onTap: () => context.push('/wordbook'),
@@ -625,17 +714,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildDataStats() {
-    if (_isLoading) {
-      return Container(
-        height: 140,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: _cardShadow,
-        ),
-        child: const CircularProgressIndicator(),
-      );
+    if (_statsLoading) {
+      return _sectionLoader(height: 140);
     }
 
     final todayStudy = _stats?.todayStudy ?? 35;
